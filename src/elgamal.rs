@@ -1,4 +1,5 @@
 use libsecp256k1::{*, curve::*};
+use rand::RngCore;
 use sha2::{Sha256, Digest};
 use aes_gcm::{
   aead::{Aead, KeyInit, generic_array::GenericArray},
@@ -44,6 +45,13 @@ pub fn sk_to_pk (sk: &Scalar) -> Jacobian {
 
   context.ecmult_gen(&mut pk, sk);
   return pk;
+}
+
+pub fn gen_nonce() -> [u8; 12] {
+  let mut rng = rand::thread_rng();
+  let mut nonce = [0u8; 12];
+  rng.fill_bytes(&mut nonce);
+  return nonce;
 }
 
 pub fn encrypt(msg: &str, pk: Jacobian, nonce: &[u8; 12]) -> (Vec<u8>, Jacobian) {

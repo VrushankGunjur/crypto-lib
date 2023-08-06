@@ -4,28 +4,40 @@ mod blindsignature;
 mod elgamal;
 
 fn main() {
-    signature::print_hello();
+    //signature::print_hello();
 
-    
-    let msg: &[u8; 11] = b"Hello World";
-    let dst: &[u8; 16] = b"Domain-Seperator";
+    let mut pass = 0u8;
+    let sig_pass = test_sig();
+    println!("Signature test passed: {}", sig_pass);
+    pass += sig_pass as u8;
 
-    let sk: SecretKey = signature::gen_sk();
-    let pk: blst::min_pk::PublicKey = signature::pk_from_sk(&sk);
+    let blind_pass = test_blind_sig();
+    println!("Blind signature test passed: {}", blind_pass);
+    pass += blind_pass as u8;
 
-    let signature: blst::min_pk::Signature = signature::sign(msg, dst, &sk);
+    let elgamal_pass = test_elgamal();
+    println!("Elgamal test passing: {}", elgamal_pass);
+    pass += elgamal_pass as u8;
 
-    println!("Regular signature verified: {}", signature::verify(signature, msg, dst, &pk));
-
-    test_blind_sig();
-    test_elgamal();
+    println!("Tests passing: {}%", (pass / 3) * 100);
 }
 
+fn test_sig() -> bool {
+  let msg: &[u8; 11] = b"Hello World";
+  let dst: &[u8; 16] = b"Domain-Seperator";
+
+  let sk: SecretKey = signature::gen_sk();
+  let pk: blst::min_pk::PublicKey = signature::pk_from_sk(&sk);
+
+  let signature: blst::min_pk::Signature = signature::sign(msg, dst, &sk);
+
+  return signature::verify(signature, msg, dst, &pk);
+}
 /*
     Should pick r by doing the following:
     r = blst.Scalar().from_bendian(os.urandom(32))  # should be PRF in real life...
 */
-fn test_blind_sig() {
+fn test_blind_sig() -> bool {
   let msg: &str = "This is a much longer message that I want signed and blinded";
 
   let r: blst_scalar = blindsignature::gen_r();
@@ -42,22 +54,24 @@ fn test_blind_sig() {
 
   let final_verify: bool = blindsignature::verify(&pk, &final_signature, msg);
   
-  println!("Blind signature verification success: {}", final_verify);
+  //println!("Blind signature verification success: {}", final_verify);
+
+  return final_verify;
 } 
 
-fn test_elgamal() {
+fn test_elgamal() -> bool {
   let msg = "Another, longer message with special characters !@#$%^&*() that I want to encrypt";
 
   let sk = elgamal::get_sk();
   let pk = elgamal::sk_to_pk(&sk);
-  let nonce = [0; 12];
-  let encrypt_ret = elgamal::encrypt(msg, pk, &nonce);
+  let nonce = elgamal::gen_nonce();
 
-  let ciphertext = encrypt_ret.0;
-  let v = encrypt_ret.1;
+  let (ciphertext, v )= elgamal::encrypt(msg, pk, &nonce);
 
-  let decrypt_msg = elgamal::decrypt(sk, v, ciphertext, &nonce);
-  println!("{}", decrypt_msg);
-  assert_eq!(decrypt_msg, msg);
-  println!("Elgamal Operational: {}", decrypt_msg == msg);
+  let decrypted_msg = elgamal::decrypt(sk, v, ciphertext, &nonce);
+
+  //println!("{}", decrypted_msg);
+  assert_eq!(decrypted_msg, msg);
+  //println!("Elgamal Operational: {}", decrypted_msg == msg);
+  return decrypted_msg == msg;
 }
