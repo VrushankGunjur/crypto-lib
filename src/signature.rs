@@ -1,12 +1,12 @@
 use blst::*;
-use rand::Rng;
+use rand::RngCore;
 
 pub fn print_hello(){
   println!("Hello from Signature.rs!");
 }
 
 pub fn gen_sk() -> min_pk::SecretKey {
-  let mut rng: rand::ThreadRng = rand::thread_rng();
+  let mut rng = rand::thread_rng();
   let mut ikm: [u8; 32] = [0u8; 32];
   rng.fill_bytes(&mut ikm);
 

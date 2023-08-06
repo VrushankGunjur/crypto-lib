@@ -1,10 +1,12 @@
 use blst::{blst_scalar, min_pk::SecretKey, blst_p1};
 mod signature;
 mod blindsignature;
+mod elgamal;
 
 fn main() {
     signature::print_hello();
 
+    
     let msg: &[u8; 11] = b"Hello World";
     let dst: &[u8; 16] = b"Domain-Seperator";
 
@@ -16,6 +18,7 @@ fn main() {
     println!("Regular signature verified: {}", signature::verify(signature, msg, dst, &pk));
 
     test_blind_sig();
+    test_elgamal();
 }
 
 /*
@@ -41,3 +44,20 @@ fn test_blind_sig() {
   
   println!("Blind signature verification success: {}", final_verify);
 } 
+
+fn test_elgamal() {
+  let msg = "Message that I want to encrypt";
+
+  let sk = elgamal::get_sk();
+  let pk = elgamal::sk_to_pk(&sk);
+  let nonce = [0; 12];
+  let encrypt_ret = elgamal::encrypt(msg, pk, &nonce);
+
+  let ciphertext = encrypt_ret.0;
+  let v = encrypt_ret.1;
+
+  let decrypt_msg = elgamal::decrypt(sk, v, ciphertext, &nonce);
+
+  assert_eq!(decrypt_msg, msg);
+  println!("Elgamal Operational: {}", decrypt_msg == msg);
+}

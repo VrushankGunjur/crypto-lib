@@ -1,9 +1,9 @@
 use blst::*;
 use std::ptr::null;
-use rand::Rng;
+use rand::RngCore;
 
 pub fn gen_r() -> blst_scalar {
-  let mut rng: rand::ThreadRng = rand::thread_rng();
+  let mut rng = rand::thread_rng();
   let mut r_seed: [u8; 32] = [1u8; 32];
   rng.fill_bytes(&mut r_seed);
 
@@ -15,7 +15,7 @@ pub fn gen_r() -> blst_scalar {
 }
 
 pub fn gen_blindsig_sk() -> blst_scalar {
-  let mut rng: rand::ThreadRng = rand::thread_rng();
+  let mut rng = rand::thread_rng();
   let mut ikm: [u8; 32] = [1u8; 32];
   rng.fill_bytes(&mut ikm);
   let mut sk: blst_scalar = blst_scalar::default();
