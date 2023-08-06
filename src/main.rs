@@ -46,7 +46,7 @@ fn test_blind_sig() {
 } 
 
 fn test_elgamal() {
-  let msg = "Message that I want to encrypt";
+  let msg = "Another, longer message with special characters !@#$%^&*() that I want to encrypt";
 
   let sk = elgamal::get_sk();
   let pk = elgamal::sk_to_pk(&sk);
@@ -57,7 +57,7 @@ fn test_elgamal() {
   let v = encrypt_ret.1;
 
   let decrypt_msg = elgamal::decrypt(sk, v, ciphertext, &nonce);
-
+  println!("{}", decrypt_msg);
   assert_eq!(decrypt_msg, msg);
   println!("Elgamal Operational: {}", decrypt_msg == msg);
 }

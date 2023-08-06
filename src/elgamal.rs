@@ -1,9 +1,8 @@
 use libsecp256k1::{*, curve::*};
-use rand::RngCore;
 use sha2::{Sha256, Digest};
 use aes_gcm::{
-  aead::{Aead, AeadCore, KeyInit, OsRng, generic_array::GenericArray},
-  Aes256Gcm, Nonce, Key // Or `Aes128Gcm`
+  aead::{Aead, KeyInit, generic_array::GenericArray},
+  Aes256Gcm, Key // Or `Aes128Gcm`
 };
 
 pub fn mult_test () {
@@ -39,27 +38,27 @@ pub fn get_sk () -> Scalar {
 }
 
 pub fn sk_to_pk (sk: &Scalar) -> Jacobian {
-  let context = &ECMULT_GEN_CONTEXT;
+  let context: &ECMultGenContext = &ECMULT_GEN_CONTEXT;
 
-  let mut pk = Jacobian::default();
+  let mut pk: Jacobian = Jacobian::default();
 
   context.ecmult_gen(&mut pk, sk);
   return pk;
 }
 
 pub fn encrypt(msg: &str, pk: Jacobian, nonce: &[u8; 12]) -> (Vec<u8>, Jacobian) {
-  let gen_mul_context = &ECMULT_GEN_CONTEXT;
-  let mul_context = &ECMULT_CONTEXT;
+  let gen_mul_context: &ECMultGenContext = &ECMULT_GEN_CONTEXT;
+  let mul_context: &ECMultContext = &ECMULT_CONTEXT;
 
-  let sk2 = Scalar::from_int(rand::random());
+  let sk2: Scalar = Scalar::from_int(rand::random());
 
-  let mut v = Jacobian::default();
+  let mut v: Jacobian = Jacobian::default();
   gen_mul_context.ecmult_gen(&mut v, &sk2); // g * sk2 = v
 
-  let mut w = Jacobian::default();
+  let mut w: Jacobian = Jacobian::default();
   mul_context.ecmult_const(&mut w, &Affine::from_gej(&pk), &sk2); // pk * sk2 = g * sk * sk2 = w
 
-  let key = hash_v_w_to_key(v, w);
+  let key: [u8; 32] = hash_v_w_to_key(v, w);
 
   let key = Key::<Aes256Gcm>::from_slice(&key);
   let cipher = Aes256Gcm::new(&key);
@@ -71,13 +70,13 @@ pub fn encrypt(msg: &str, pk: Jacobian, nonce: &[u8; 12]) -> (Vec<u8>, Jacobian)
 }
 
 fn hash_v_w_to_key(v: Jacobian, w: Jacobian) -> [u8; 32] {
-  let mut v_affine = Affine::from_gej(&v);
-  let mut w_affine = Affine::from_gej(&w);
+  let mut v_affine: Affine = Affine::from_gej(&v);
+  let mut w_affine: Affine = Affine::from_gej(&w);
   v_affine.x.normalize();
   v_affine.y.normalize();
   w_affine.x.normalize();
   w_affine.y.normalize();
-  let hash_input = [v_affine.x.b32(), v_affine.y.b32(), w_affine.x.b32(), w_affine.y.b32()].concat();
+  let hash_input: Vec<u8> = [v_affine.x.b32(), v_affine.y.b32(), w_affine.x.b32(), w_affine.y.b32()].concat();
 
   let mut hasher = Sha256::new();
   hasher.update(hash_input);
@@ -87,15 +86,15 @@ fn hash_v_w_to_key(v: Jacobian, w: Jacobian) -> [u8; 32] {
 
 pub fn decrypt(sk: Scalar, v: Jacobian, ciphertext: Vec<u8>, nonce: &[u8; 12]) -> String {
 
-  let context = &ECMULT_CONTEXT;
-  let mut w = Jacobian::default();
+  let context: &ECMultContext = &ECMULT_CONTEXT;
+  let mut w: Jacobian = Jacobian::default();
   context.ecmult_const(&mut w, &Affine::from_gej(&v), &sk); // g * sk2 * sk = w
   
-  let key = hash_v_w_to_key(v, w);
+  let key: [u8; 32] = hash_v_w_to_key(v, w);
   let key = Key::<Aes256Gcm>::from_slice(&key);
   let cipher = Aes256Gcm::new(&key);
   let res = cipher.decrypt(GenericArray::from_slice(nonce), ciphertext.as_ref());
 
-  let msg_bytes = res.unwrap();
+  let msg_bytes: Vec<u8> = res.unwrap();
   return String::from_utf8(msg_bytes).unwrap();
 }
