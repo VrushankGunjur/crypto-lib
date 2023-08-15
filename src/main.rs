@@ -2,9 +2,11 @@ use blst::{blst_scalar, min_pk::SecretKey, blst_p1};
 mod signature;
 mod blindsignature;
 mod elgamal;
+mod additiveeglamal;
 
 fn main() {
     //signature::print_hello();
+    //additiveeglamal::debug();
 
     let mut pass = 0u8;
     let sig_pass = test_sig();
@@ -19,7 +21,11 @@ fn main() {
     println!("Elgamal test passing: {}", elgamal_pass);
     pass += elgamal_pass as u8;
 
-    println!("Tests passing: {}%", (pass / 3) * 100);
+    let additive_elgamal_pass = test_additive_elgamal_encrypt();
+    println!("Additive Elgamal test passing: {}", additive_elgamal_pass);
+    pass += additive_elgamal_pass as u8;
+
+    println!("Tests passing: {}%", (pass / 4) * 100);
 }
 
 fn test_sig() -> bool {
@@ -74,4 +80,34 @@ fn test_elgamal() -> bool {
   assert_eq!(decrypted_msg, msg);
   //println!("Elgamal Operational: {}", decrypted_msg == msg);
   return decrypted_msg == msg;
+}
+
+fn test_additive_elgamal_encrypt() -> bool {
+  let num1 = 2000u32;
+  let num2 = 1000u32;
+
+  let sk = additiveeglamal::get_sk();
+  let pk = elgamal::sk_to_pk(&sk);
+
+  let (mut e1, mut v1) = additiveeglamal::encrypt(&num1, pk);
+
+  (e1, v1) = additiveeglamal::rerandomize(pk, (e1, v1));
+
+  let (mut e2, mut v2) = additiveeglamal::encrypt(&num2, pk);
+
+  (e2, v2) = additiveeglamal::rerandomize(pk, (e2, v2));
+
+  let e_combined = additiveeglamal::add_encryptions(&e1, &e2);
+
+
+  let decrypt = additiveeglamal::decrypt(sk, &vec![v1, v2], e_combined);
+  
+  //println!("{}", additiveeglamal::extract_number(additiveeglamal::decrypt(sk, &vec![v1], e1)));
+  //println!("{}", additiveeglamal::extract_number(additiveeglamal::decrypt(sk, &vec![v2], e2)));
+  // let step1 = additiveeglamal::decrypt2(sk, v2, e_combined);
+  // let decrypt = additiveeglamal::decrypt2(sk, v1, e1);
+
+  let decrypted_num = additiveeglamal::extract_number(decrypt);
+  println!("{}", decrypted_num);
+  return decrypted_num == num1 + num2;
 }
