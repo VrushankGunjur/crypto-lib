@@ -1,40 +1,4 @@
 use libsecp256k1::{*, curve::*};
-use rand::RngCore;
-
-// pub fn debug() {
-//   let gen_ctx = &ECMULT_GEN_CONTEXT;
-//   let mul_ctx = &ECMULT_CONTEXT;
-
-//   let mut g_a = Jacobian::default();
-//   let alpha = Scalar::from_int(3);
-//   let beta = Scalar::from_int(2);
-//   gen_ctx.ecmult_gen(&mut g_a, &alpha); // g * a
-
-//   let mut g_a_b = Jacobian::default();
-//   mul_ctx.ecmult_const(&mut g_a_b, &Affine::from_gej(&g_a), &beta); // this is affine * scalar!
-
-//   let mut g_x = Jacobian::default();
-//   let x = Scalar::from_int(5);
-//   let y = Scalar::from_int(4);
-//   gen_ctx.ecmult_gen(&mut g_x, &x); // g * a
-
-//   let mut g_x_y = Jacobian::default();
-//   mul_ctx.ecmult_const(&mut g_x_y, &Affine::from_gej(&g_x), &y); // this is affine * scalar!
-
-//   let msg = 1u32;
-//   let mut t = Scalar::from_int(msg);
-//   let mut g_m = Jacobian::default();
-//   gen_ctx.ecmult_gen(&mut g_m, &t);
-
-//   let gab_p_gm = g_a_b.add_var(&g_m, None);
-//   let gxy_p_gab_p_gm = gab_p_gm.add_var(&g_x_y, None);
-//   let sub_factor = g_a_b.neg();
-//   let should_be_gm = gab_p_gm.add_var(&sub_factor, None);
-
-//   let before = Affine::from_gej(&g_m);
-//   let after = Affine::from_gej(&should_be_gm);
-//   println!("test");
-// }
 
 pub fn get_sk () -> Scalar {
   // let mut sk = Scalar::default();
@@ -77,10 +41,9 @@ fn test_equality(p1: &mut Affine, p2: &mut Affine) -> bool {
   return p1.x.eq_var(&p2.x) && p1.y.eq_var(&p2.y);
 }
 
-pub fn decrypt(sk: Scalar, vs: &Vec<Jacobian>, e: Jacobian) -> Jacobian {
-  // sk = alpha
+pub fn decrypt(sk: Scalar, vs: &Vec<Jacobian>, e: Jacobian) -> u32 {
   let mul_context: &ECMultContext = &ECMULT_CONTEXT;
-  let mut g_m = e.clone();
+  let mut g_m: Jacobian = e.clone();
 
   for v in vs.iter() {
     let mut w: Jacobian = Jacobian::default();
@@ -90,7 +53,8 @@ pub fn decrypt(sk: Scalar, vs: &Vec<Jacobian>, e: Jacobian) -> Jacobian {
 
     g_m = g_m.add_var(&w, None);  // add the negation, so subtract w
   }
-  return g_m;
+  return extract_number(g_m);
+  //return g_m;
 }
 
 pub fn rerandomize(pk: Jacobian, c: (Jacobian, Jacobian)) -> (Jacobian, Jacobian) {
@@ -98,19 +62,19 @@ pub fn rerandomize(pk: Jacobian, c: (Jacobian, Jacobian)) -> (Jacobian, Jacobian
   let gen_mul_context: &ECMultGenContext = &ECMULT_GEN_CONTEXT;
   let mul_context: &ECMultContext = &ECMULT_CONTEXT;
 
-  let r = Scalar::from_int(rand::random());
-  let mut g_r = Jacobian::default();
-  let mut pk_r = Jacobian::default();
+  let r: Scalar = Scalar::from_int(rand::random());
+  let mut g_r: Jacobian = Jacobian::default();
+  let mut pk_r: Jacobian = Jacobian::default();
   gen_mul_context.ecmult_gen(&mut g_r, &r);
   mul_context.ecmult_const(&mut pk_r, &Affine::from_gej(&pk), &r);
 
-  let v_rerand = v.add_var(&g_r, None);
-  let e_rerand = e.add_var(&pk_r, None);
+  let v_rerand: Jacobian = v.add_var(&g_r, None);
+  let e_rerand: Jacobian = e.add_var(&pk_r, None);
   return (e_rerand, v_rerand)
 }
 
 
-pub fn decrypt2 (sk: Scalar, v: Jacobian, e: Jacobian) -> Jacobian {
+pub fn decrypt2 (sk: Scalar, v: Jacobian, e: Jacobian) -> u32 {
   let mul_context: &ECMultContext = &ECMULT_CONTEXT;
 
   let mut w: Jacobian = Jacobian::default();
@@ -119,15 +83,17 @@ pub fn decrypt2 (sk: Scalar, v: Jacobian, e: Jacobian) -> Jacobian {
   w = w.neg();
 
   let g_m = e.add_var(&w, None);  // add the negation, so subtract w
-  return g_m;
+  return extract_number(g_m);
+  //return g_m;
 }
-pub fn extract_number(g_m: Jacobian) -> u32 {
+
+fn extract_number(g_m: Jacobian) -> u32 {
   let gen_mul_context: &ECMultGenContext = &ECMULT_GEN_CONTEXT;
 
   let mut m: u32 = 1;
-  let mut cur = Jacobian::default();
+  let mut cur: Jacobian = Jacobian::default();
   gen_mul_context.ecmult_gen(&mut cur, &Scalar::from_int(1));
-  let mut g = Jacobian::default();
+  let mut g: Jacobian = Jacobian::default();
   gen_mul_context.ecmult_gen(&mut g, &Scalar::from_int(1));
   for _ in 1..1_000_000 {
     if test_equality(&mut Affine::from_gej(&cur), &mut Affine::from_gej(&g_m)) {
@@ -141,6 +107,14 @@ pub fn extract_number(g_m: Jacobian) -> u32 {
   return m;
 }
 
-pub fn add_encryptions(e1: &Jacobian, e2:&Jacobian) -> Jacobian {
-  return e1.add_var(e2, None);
+pub fn add_encryptions(es: &Vec<Jacobian>) -> Jacobian {
+  let mut sum = es[0];
+  for e in es.iter().skip(1) {
+    sum = sum.add_var(e, None);
+  }
+  return sum;
 }
+
+// pub fn add_encryptions(e1: &Jacobian, e2:&Jacobian) -> Jacobian {
+//   return e1.add_var(e2, None);
+// }

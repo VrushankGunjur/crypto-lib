@@ -21,7 +21,7 @@ fn main() {
     println!("Elgamal test passing: {}", elgamal_pass);
     pass += elgamal_pass as u8;
 
-    let additive_elgamal_pass = test_additive_elgamal_encrypt();
+    let additive_elgamal_pass = test_additive_elgamal();
     println!("Additive Elgamal test passing: {}", additive_elgamal_pass);
     pass += additive_elgamal_pass as u8;
 
@@ -82,32 +82,25 @@ fn test_elgamal() -> bool {
   return decrypted_msg == msg;
 }
 
-fn test_additive_elgamal_encrypt() -> bool {
-  let num1 = 2000u32;
-  let num2 = 1000u32;
+fn test_additive_elgamal() -> bool {
+  let num1: u32 = 2000u32;
+  let num2: u32 = 1000u32;
 
   let sk = additiveeglamal::get_sk();
-  let pk = elgamal::sk_to_pk(&sk);
+  let pk = additiveeglamal::sk_to_pk(&sk);
 
-  let (mut e1, mut v1) = additiveeglamal::encrypt(&num1, pk);
+  let c1 = additiveeglamal::encrypt(&num1, pk);
+  let (e1, v1) = additiveeglamal::rerandomize(pk, c1);
 
-  (e1, v1) = additiveeglamal::rerandomize(pk, (e1, v1));
+  let c2 = additiveeglamal::encrypt(&num2, pk);
+  let (e2, v2) = additiveeglamal::rerandomize(pk, c2);
 
-  let (mut e2, mut v2) = additiveeglamal::encrypt(&num2, pk);
+  assert!(c1.0.x != e1.x);
+  assert!(c2.0.x != e2.x);
 
-  (e2, v2) = additiveeglamal::rerandomize(pk, (e2, v2));
+  let e_combined = additiveeglamal::add_encryptions(&vec![e1, e2]);
 
-  let e_combined = additiveeglamal::add_encryptions(&e1, &e2);
-
-
-  let decrypt = additiveeglamal::decrypt(sk, &vec![v1, v2], e_combined);
-  
-  //println!("{}", additiveeglamal::extract_number(additiveeglamal::decrypt(sk, &vec![v1], e1)));
-  //println!("{}", additiveeglamal::extract_number(additiveeglamal::decrypt(sk, &vec![v2], e2)));
-  // let step1 = additiveeglamal::decrypt2(sk, v2, e_combined);
-  // let decrypt = additiveeglamal::decrypt2(sk, v1, e1);
-
-  let decrypted_num = additiveeglamal::extract_number(decrypt);
-  println!("{}", decrypted_num);
-  return decrypted_num == num1 + num2;
+  let decrypted_msg: u32 = additiveeglamal::decrypt(sk, &vec![v1, v2], e_combined);
+  println!("{}", decrypted_msg);
+  return decrypted_msg == num1 + num2;
 }
