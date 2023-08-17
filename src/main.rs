@@ -6,7 +6,6 @@ mod additiveeglamal;
 
 fn main() {
     //signature::print_hello();
-    //additiveeglamal::debug();
 
     let mut pass = 0u8;
     let sig_pass = test_sig();
@@ -84,23 +83,22 @@ fn test_elgamal() -> bool {
 
 fn test_additive_elgamal() -> bool {
   let num1: u32 = 2000u32;
-  let num2: u32 = 1000u32;
+  let num2: u32 = 3000u32;
 
+  // encrypt to this pair
   let sk = additiveeglamal::get_sk();
   let pk = additiveeglamal::sk_to_pk(&sk);
 
   let c1 = additiveeglamal::encrypt(&num1, pk);
-  let (e1, v1) = additiveeglamal::rerandomize(pk, c1);
 
   let c2 = additiveeglamal::encrypt(&num2, pk);
-  let (e2, v2) = additiveeglamal::rerandomize(pk, c2);
 
-  assert!(c1.0.x != e1.x);
-  assert!(c2.0.x != e2.x);
+  let c_combined = additiveeglamal::add_encryptions(&vec![c1, c2]);
 
-  let e_combined = additiveeglamal::add_encryptions(&vec![e1, e2]);
+  let rerandomized_c = additiveeglamal::rerandomize(pk, c_combined);
+  assert!(rerandomized_c.0.x != c_combined.0.x);
 
-  let decrypted_msg: u32 = additiveeglamal::decrypt(sk, &vec![v1, v2], e_combined);
+  let decrypted_msg: u32 = additiveeglamal::decrypt(sk, rerandomized_c);
   println!("{}", decrypted_msg);
   return decrypted_msg == num1 + num2;
 }
