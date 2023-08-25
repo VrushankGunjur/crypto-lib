@@ -3,7 +3,7 @@ mod signature;
 mod blindsignature;
 mod elgamal;
 mod additiveeglamal;
-mod bjj_ae_elgamal;
+mod bjj_ah_elgamal;
 
 fn main() {
     //signature::print_hello();
@@ -28,7 +28,7 @@ fn main() {
     let bjj_additive_elgamal_pass = test_bjj_ah_elgamal();
     println!("BJJ Additive Elgamal test passing: {}", bjj_additive_elgamal_pass);
     pass += additive_elgamal_pass as u8;
-    
+
     println!("Tests passing: {}%", (pass / 4) * 100);
 }
 
@@ -112,17 +112,16 @@ fn test_bjj_ah_elgamal() -> bool {
   let num1 = 1u32;
   let num2 = 2u32;
 
-  let sk = bjj_ae_elgamal::get_sk();
-  let pk = bjj_ae_elgamal::sk_to_pk(&sk);
+  let sk = bjj_ah_elgamal::get_sk();
+  let pk = bjj_ah_elgamal::sk_to_pk(&sk);
 
-  let c1 = bjj_ae_elgamal::encrypt(&num1, &pk);
+  let c1 = bjj_ah_elgamal::encrypt(&num1, &pk);
 
-  let c2 = bjj_ae_elgamal::encrypt(&num2, &pk);
+  let c2 = bjj_ah_elgamal::encrypt(&num2, &pk);
 
-
-  let c = bjj_ae_elgamal::add_encryptions(&vec![c1, c2]);
-  let rerand_c = bjj_ae_elgamal::rerandomize(&pk, c);
-  let decrypt = bjj_ae_elgamal::decrypt(&sk, rerand_c);
+  let c = bjj_ah_elgamal::add_encryptions(&vec![c1, c2]);
+  let rerand_c = bjj_ah_elgamal::rerandomize(&pk, c);
+  let decrypt = bjj_ah_elgamal::decrypt(&sk, rerand_c);
 
   println!("{}", decrypt);
   return decrypt == num1 + num2;
