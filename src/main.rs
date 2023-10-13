@@ -1,9 +1,17 @@
+use std::str::FromStr;
+
 use blst::{blst_scalar, min_pk::SecretKey, blst_p1};
 mod signature;
 mod blindsignature;
 mod elgamal;
 mod additiveeglamal;
 mod bjj_ah_elgamal;
+mod hash;
+use babyjubjub_rs::*;
+use ff::{PrimeField, Field};
+use acvm::FieldElement;
+use num_bigint::BigUint;
+use sha2::digest::typenum::U254;
 
 fn main() {
     //signature::print_hello();
@@ -30,6 +38,19 @@ fn main() {
     pass += additive_elgamal_pass as u8;
 
     println!("Tests passing: {}%", (pass / 4) * 100);
+
+    //hash::mimc_bn254();
+    // let out = hash::mimc_bn254(&vec![Fr::from_str("0").unwrap()]);
+    // println!("{}", out.to_string());
+
+    // let t = hash::pow_32(Fr::from_str("10546185249390392695582524554167530669949955276893453512788278945742408153192").unwrap(), 7);
+    // println!("{}", t.to_string());
+
+    // let bigint = BigUint::from_str("19362583304414853660976404410208489566967618125972377176980367224623492419647").unwrap();
+    // let out = hash::mimc_bn254_2(&vec![FieldElement::from_be_bytes_reduce(&bigint.to_bytes_be())]);
+    // //let out = hash::mimc_bn254_2(&vec![FieldElement::from(2 as u128)]);
+    // println!("{}", out.to_hex());
+    // println!("{}", FieldElement::from_be_bytes_reduce(&bigint.to_bytes_le()).to_string());
 }
 
 fn test_sig() -> bool {
@@ -109,8 +130,8 @@ fn test_additive_elgamal() -> bool {
 }
 
 fn test_bjj_ah_elgamal() -> bool {
-  let num1 = 1u32;
-  let num2 = 2u32;
+  let num1 = 100u32;
+  let num2 = 250u32;
 
   let sk = bjj_ah_elgamal::get_sk();
   let pk = bjj_ah_elgamal::sk_to_pk(&sk);

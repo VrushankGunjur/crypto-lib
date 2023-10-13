@@ -1,9 +1,6 @@
-// jubjub is a designed for a different modulus p than babyjubjub.
 use babyjubjub_rs::*;
-// use babyjubjub_rs::Fr::FrRepr;
 use lazy_static::lazy_static;
 use ff::*;
-use rand::{thread_rng, Rng};
 use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
 
 //use poseidon_rs::Fr;
@@ -13,20 +10,25 @@ use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
 lazy_static! {
   static ref B8: Point = Point {
     x: Fr::from_str(
-           "5299619240641551281634865583518297030282874472190772894086521144482721001553",
-       )
-        .unwrap(),
-        y: Fr::from_str(
-            "16950150798460657717958625567821834550301663161624707787222815936182638968203",
-        )
-            .unwrap(),
+        "5299619240641551281634865583518297030282874472190772894086521144482721001553",
+    )
+    .unwrap(),
+    y: Fr::from_str(
+        "16950150798460657717958625567821834550301663161624707787222815936182638968203",
+    )
+    .unwrap(),
 };
+}
+
+fn print_point(p: &Point, name: &str) {
+  println!("{}.x: {}", name, p.x.to_string());
+  println!("{}.y: {}", name, p.y.to_string());
 }
 
 fn gen_rand_bigint () -> BigInt {
   let mut rng = rand::thread_rng();
   let low =  1.to_bigint().unwrap();
-  let high = 10000.to_bigint().unwrap();
+  let high = 1000000.to_bigint().unwrap();
   return rng.gen_bigint_range(&low, &high);
 }
 
@@ -68,30 +70,32 @@ fn test_equality(p1: &mut Point, p2: &mut Point) -> bool {
 pub fn decrypt(sk: &BigInt, c: (Point, Point)) -> u32 {
   let (e, v) = c;
 
+  print_point(&e, "e");
+  print_point(&v, "v");
+  println!("sk: {}", sk.to_string());
+
   let mut g_m: Point = e.clone();
 
   let mut w = v.mul_scalar(&sk);
   w.x.negate(); // negate point
 
-  g_m = g_m.projective().add(&w.projective()).affine();  // add the negation, so subtract w
-  
-  return extract_number(&mut g_m);
-}
+  g_m = g_m.projective().add(&w.projective()).affine();  // add the negation, so subtract w from e
 
-fn print_point(p: &Point, name: &str) {
-  println!("{}.x: {}", name, p.x.to_string());
-  println!("{}.y: {}", name, p.y.to_string());
+  let m: u32 = extract_number(&mut g_m);
+  
+  println!("m: {}", m);
+  return m;
 }
 
 pub fn rerandomize(pk: &Point, c: (Point, Point)) -> (Point, Point) {
 
   let (e, v) = c;
-  print_point(pk, "pk");
-  print_point(&e, "e");
-  print_point(&v, "v");
+  //print_point(pk, "pk");
+  //print_point(&e, "e");
+  //print_point(&v, "v");
 
   let r = gen_rand_bigint();
-  println!("r: {}", r.to_string());
+  //println!("r: {}", r.to_string());
 
 
   let g_r = B8.mul_scalar(&r);
@@ -100,8 +104,8 @@ pub fn rerandomize(pk: &Point, c: (Point, Point)) -> (Point, Point) {
   let v_rerand = v.projective().add(&g_r.projective()).affine();
   let e_rerand = e.projective().add(&pk_r.projective()).affine();
 
-  print_point(&v_rerand, "v_rerand");
-  print_point(&e_rerand, "e_rerand");
+  //print_point(&v_rerand, "v_rerand");
+  //print_point(&e_rerand, "e_rerand");
   return (e_rerand, v_rerand)
 }
 
