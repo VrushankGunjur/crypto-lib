@@ -50,9 +50,9 @@ fn main() {
     // println!("dc: {}", dc);
 
 
-    let mut pt = bjj_ah_elgamal::get_point(&348_432);
-    let dl = bjj_ah_elgamal::discrete_log(&mut pt);
-    println!("output of discrete log: {}", dl);
+    // let mut pt = bjj_ah_elgamal::get_point(&1_000_000);
+    // let dl = bjj_ah_elgamal::discrete_log(&mut pt);
+    // println!("output of discrete log: {}", dl);
     //hash::mimc_bn254();
     // let out = hash::mimc_bn254(&vec![Fr::from_str("0").unwrap()]);
     // println!("{}", out.to_string());
@@ -144,8 +144,8 @@ fn test_additive_elgamal() -> bool {
 }
 
 fn test_bjj_ah_elgamal() -> bool {
-  let num1 = 100u32;
-  let num2 = 250u32;
+  let num1 = 1_000_000u32;
+  let num2 = 2_500_000u32;
 
   let sk = bjj_ah_elgamal::get_sk();
   let pk = bjj_ah_elgamal::sk_to_pk(&sk);

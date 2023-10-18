@@ -56,12 +56,13 @@ pub fn sk_to_pk (sk: &BigInt) -> Point {
 }
 
 pub fn encrypt(msg: &u32, pk: &Point) -> (Point, Point) {
+  let adjusted_msg = msg;
   let beta = gen_rand_bigint();
   let v = B8.mul_scalar(&beta);  // g * sk2 = v
 
   let w = pk.mul_scalar(&beta); // pk * sk2 = g * sk * sk2 = w
 
-  let g_m = B8.mul_scalar(&BigInt::from_bytes_be(Sign::Plus, &msg.to_be_bytes()));  // put msg on curve
+  let g_m = B8.mul_scalar(&BigInt::from_bytes_be(Sign::Plus, &adjusted_msg.to_be_bytes()));  // put msg on curve
   let e = w.projective().add(&g_m.projective());
 
   return (e.affine(), v);
@@ -85,8 +86,8 @@ pub fn decrypt(sk: &BigInt, c: (Point, Point)) -> u32 {
 
   g_m = g_m.projective().add(&w.projective()).affine();  // add the negation, so subtract w from e
 
-  let m: u32 = extract_number(&mut g_m);
-  
+  //let m: u32 = extract_number(&mut g_m);
+  let m = discrete_log(&mut g_m);
   println!("m: {}", m);
   return m;
 }
@@ -113,24 +114,26 @@ pub fn rerandomize(pk: &Point, c: (Point, Point)) -> (Point, Point) {
   return (e_rerand, v_rerand)
 }
 
-
+/*
+    Discrete log calculates log_g(g^m) = m. As an implementation detail of the encryption scheme, it actually returns m-1.
+*/
 pub fn discrete_log(g_m: &mut Point) -> u32 {
-    let q: u32 = 1_000_000;
-    let t = (q as f64).sqrt() as u32;
-
+    let q: u32 = 16_192_576;
+    //let t = (q as f64).sqrt() as u32;
+    let t = 4024;
     println!("q: {}, t: {}", q, t);
 
     //let num_big_steps = ((q/t) as u32) * t;
-    let mut ring = vec![B8.clone(); (t+1) as usize];
+    let mut ring: Vec<Point> = vec![B8.clone(); (t+1) as usize];
     for i in 1..(t+1) {
         // g^1, g^t, g^2t, g^3t, ...
         //println!("ring[{}] = {}", i,  t *i);
         ring[i as usize] = ring[i as usize].mul_scalar(&(t * i).to_bigint().unwrap());
     }
 
-    let mut small_steps = vec![B8.clone(); t as usize];
-    let mut cur_step = g_m.clone();
-    let g = B8.clone().projective();
+    let mut small_steps: Vec<Point> = vec![B8.clone(); t as usize];
+    let mut cur_step: Point = g_m.clone();
+    let g: PointProjective = B8.clone().projective();
     small_steps[0] = cur_step.clone();
     for i in 1..t {
         cur_step = cur_step.projective().add(&g).affine();
@@ -142,14 +145,16 @@ pub fn discrete_log(g_m: &mut Point) -> u32 {
     for k in 1..(t+1) {
         for i in 0..t{
             if test_equality(&mut ring[k as usize], &mut small_steps[i as usize]) {
-                return (k * t) - i;
+                return (k * t) - i; // -1 adjustion factor to account for no encryption of 0
             }
         }
     } 
     return 0;
 }
 
-
+/*
+    Naive discrete log
+*/
 fn extract_number(g_m: &mut Point) -> u32 {
 
   let mut m: u32 = 1;
@@ -166,7 +171,7 @@ fn extract_number(g_m: &mut Point) -> u32 {
     m += 1;
   }
 
-  return m;
+  return m; // -1 to adjust
 }
 
 pub fn add_encryptions(cs: &Vec<(Point, Point)>) -> (Point, Point) {
