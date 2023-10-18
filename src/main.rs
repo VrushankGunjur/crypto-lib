@@ -7,11 +7,7 @@ mod elgamal;
 mod additiveeglamal;
 mod bjj_ah_elgamal;
 mod hash;
-use babyjubjub_rs::*;
 use ff::{PrimeField, Field};
-use acvm::FieldElement;
-use num_bigint::BigUint;
-use sha2::digest::typenum::U254;
 
 fn main() {
     //signature::print_hello();
@@ -39,6 +35,24 @@ fn main() {
 
     println!("Tests passing: {}%", (pass / 4) * 100);
 
+
+    let ret = hash::poseidon().to_string();
+    println!("test {}", ret);
+
+
+    // try encrypting 0. Doesn't support it! Need to do + 1 for encrypt and - 1
+    // when sending back a decryption.
+
+    // let sk = bjj_ah_elgamal::get_sk();
+    // let pk = bjj_ah_elgamal::sk_to_pk(&sk);
+    // let c = bjj_ah_elgamal::encrypt(&0, &pk);
+    // let dc = bjj_ah_elgamal::decrypt(&sk, c);
+    // println!("dc: {}", dc);
+
+
+    let mut pt = bjj_ah_elgamal::get_point(&348_432);
+    let dl = bjj_ah_elgamal::discrete_log(&mut pt);
+    println!("output of discrete log: {}", dl);
     //hash::mimc_bn254();
     // let out = hash::mimc_bn254(&vec![Fr::from_str("0").unwrap()]);
     // println!("{}", out.to_string());

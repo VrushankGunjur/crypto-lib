@@ -522,7 +522,7 @@ dependencies = [
  "num",
  "num-bigint 0.4.4",
  "num-traits",
- "poseidon-rs",
+ "poseidon-rs 0.0.8",
  "rand 0.8.5",
 ]
 
@@ -969,6 +969,7 @@ dependencies = [
  "lazy_static",
  "libsecp256k1",
  "num-bigint 0.4.4",
+ "poseidon-rs 0.0.10",
  "rand 0.8.5",
  "sha2 0.10.7",
 ]
@@ -2028,6 +2029,17 @@ name = "poseidon-rs"
 version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c76e4996e3d9572d8b5cd56f495dda3fb748fd4cd6bdca754270b8b66a9a2dd3"
+dependencies = [
+ "ff_ce",
+ "rand 0.4.6",
+ "serde_json",
+]
+
+[[package]]
+name = "poseidon-rs"
+version = "0.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7bd44e953add4c619a75a970cc4335e3175dfecc61ab64ee6caa8fffde95c95"
 dependencies = [
  "ff_ce",
  "rand 0.4.6",

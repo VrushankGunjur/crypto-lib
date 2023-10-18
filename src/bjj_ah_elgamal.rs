@@ -46,6 +46,10 @@ pub fn get_sk () -> BigInt {
   // return Fr::from_str(result.as_str()).unwrap();
 }
 
+pub fn get_point(power: &u32) -> Point {
+    return B8.mul_scalar(&BigInt::from_bytes_be(Sign::Plus, &power.to_be_bytes())); 
+}
+
 pub fn sk_to_pk (sk: &BigInt) -> Point {
   let r: Point = B8.mul_scalar(sk);
   return r;
@@ -108,6 +112,43 @@ pub fn rerandomize(pk: &Point, c: (Point, Point)) -> (Point, Point) {
   //print_point(&e_rerand, "e_rerand");
   return (e_rerand, v_rerand)
 }
+
+
+pub fn discrete_log(g_m: &mut Point) -> u32 {
+    let q: u32 = 1_000_000;
+    let t = (q as f64).sqrt() as u32;
+
+    println!("q: {}, t: {}", q, t);
+
+    //let num_big_steps = ((q/t) as u32) * t;
+    let mut ring = vec![B8.clone(); (t+1) as usize];
+    for i in 1..(t+1) {
+        // g^1, g^t, g^2t, g^3t, ...
+        //println!("ring[{}] = {}", i,  t *i);
+        ring[i as usize] = ring[i as usize].mul_scalar(&(t * i).to_bigint().unwrap());
+    }
+
+    let mut small_steps = vec![B8.clone(); t as usize];
+    let mut cur_step = g_m.clone();
+    let g = B8.clone().projective();
+    small_steps[0] = cur_step.clone();
+    for i in 1..t {
+        cur_step = cur_step.projective().add(&g).affine();
+        small_steps[i as usize] = cur_step.clone();
+        //small_steps[i as usize] = g_m.mul_scalar(&i.to_bigint().unwrap());
+    }
+
+    // check if smallsteps[i] == ring[j]
+    for k in 1..(t+1) {
+        for i in 0..t{
+            if test_equality(&mut ring[k as usize], &mut small_steps[i as usize]) {
+                return (k * t) - i;
+            }
+        }
+    } 
+    return 0;
+}
+
 
 fn extract_number(g_m: &mut Point) -> u32 {
 
