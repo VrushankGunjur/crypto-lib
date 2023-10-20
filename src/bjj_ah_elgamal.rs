@@ -61,19 +61,23 @@ pub fn encrypt(msg: &u32, pk: &Point) -> (PointProjective, PointProjective) {
   //let d = O.clone();
   let w = pk.mul_scalar(&beta); // pk * sk2 = g * sk * sk2 = w
 
-  let g_m = B8.mul_scalar(&BigInt::from_bytes_be(Sign::Plus, &adjusted_msg.to_be_bytes()));  // put msg on curve
-  let e = w.projective().add(&g_m.projective());
+  let mut g_m = O.clone();
+  if msg > &0 {
+    g_m = B8.mul_scalar(&BigInt::from_bytes_be(Sign::Plus, &adjusted_msg.to_be_bytes())).projective();  // put msg on curve
+  }
+  // if g_m is the point at infinity, then e stays the same.
+  let mut e = w.clone().projective();
+  if !g_m.z.is_zero() {
+    e = w.projective().add(&g_m);
+  }
 
   return (e, v.projective());
 }
 
-fn test_equality_affine(p1: &mut Point, p2: &mut Point) -> bool {
+fn test_equality(p1: &mut Point, p2: &mut Point) -> bool {
   return p1.x.eq(&p2.x) && p1.y.eq(&p2.y);
 }
 
-fn test_equality_projective(p1: &mut PointProjective, p2: &mut PointProjective) -> bool {
-    return p1.x.eq(&p2.x) && p1.y.eq(&p2.y) && p1.z.eq(&p2.z);
-}
 
 pub fn decrypt(sk: &BigInt, c: (PointProjective, PointProjective)) -> u32 {
   let (e, v) = c;
@@ -125,39 +129,30 @@ pub fn discrete_log(g_m: &mut PointProjective) -> u32 {
     // first, check for 0
     // g*0 = O
 
+    if g_m.z.is_zero() {
+        return 0;   // if it's the point at infinity
+    }
 
-
+    let g_m_affine = g_m.affine();
     let q: u32 = 16_192_576;
     //let t = (q as f64).sqrt() as u32;
-    let t = 4024;   // if q is fixed, then we can pre-compute t and hard-code it to save ops
+    let t = 4024;
     println!("q: {}, t: {}", q, t);
 
-    // if the projective point's z-coordinate is 0, then the point is the point
-    // at infinity
-
-    // point on line to point on a circle is "projecting" the point
-    // O = (x, y, 0)
-    // projection: (x, y, z) <-> (x/z, y/z)
-    // z <-> x/y
-
     //let num_big_steps = ((q/t) as u32) * t;
-    let mut ring: Vec<PointProjective> = vec![B8.clone().projective(); (t+1) as usize];
-    // if m=0, then treat it as a point at infinity
-    // 0 * g = O (pt at infinity)
-    // 1 * g = g
-    // 2 * g = 2g
+    let mut ring: Vec<Point> = vec![B8.clone(); (t+1) as usize];
     for i in 1..(t+1) {
         // g^1, g^t, g^2t, g^3t, ...
         //println!("ring[{}] = {}", i,  t *i);
-        ring[i as usize] = B8.clone().mul_scalar(&(t * i).to_bigint().unwrap()).projective();
+        ring[i as usize] = ring[i as usize].mul_scalar(&(t * i).to_bigint().unwrap());
     }
 
-    let mut small_steps: Vec<PointProjective> = vec![B8.clone().projective(); t as usize];
-    let mut cur_step: PointProjective = g_m.clone();
+    let mut small_steps: Vec<Point> = vec![B8.clone(); t as usize];
+    let mut cur_step: Point = g_m_affine.clone();
     let g: PointProjective = B8.clone().projective();
     small_steps[0] = cur_step.clone();
     for i in 1..t {
-        cur_step = cur_step.add(&g);
+        cur_step = cur_step.projective().add(&g).affine();
         small_steps[i as usize] = cur_step.clone();
         //small_steps[i as usize] = g_m.mul_scalar(&i.to_bigint().unwrap());
     }
@@ -165,7 +160,7 @@ pub fn discrete_log(g_m: &mut PointProjective) -> u32 {
     // check if smallsteps[i] == ring[j]
     for k in 1..(t+1) {
         for i in 0..t{
-            if test_equality_affine(&mut ring[k as usize].affine(), &mut small_steps[i as usize].affine()) {
+            if test_equality(&mut ring[k as usize], &mut small_steps[i as usize]) {
                 return (k * t) - i; // -1 adjustion factor to account for no encryption of 0
             }
         }
@@ -184,7 +179,7 @@ fn extract_number(g_m: &mut PointProjective) -> u32 {
   let g = B8.clone().projective();
 
   for _ in 1..1_000_000 {
-    if test_equality_affine(&mut cur.affine(), &mut g_m.affine()) {
+    if test_equality(&mut cur.affine(), &mut g_m.affine()) {
       break;
     }
 

@@ -33,8 +33,10 @@ fn main() {
     println!("BJJ Additive Elgamal test passing: {}", bjj_additive_elgamal_pass);
     pass += additive_elgamal_pass as u8;
 
-    println!("Tests passing: {}%", (pass / 4) * 100);
+    println!("Tests passing: {}%", (pass / 3) * 100);
 
+
+    
 
     let ret = hash::poseidon().to_string();
     println!("test {}", ret);
@@ -45,7 +47,8 @@ fn main() {
 
     // let sk = bjj_ah_elgamal::get_sk();
     // let pk = bjj_ah_elgamal::sk_to_pk(&sk);
-    // let c = bjj_ah_elgamal::encrypt(&1, &pk);
+    // let c = bjj_ah_elgamal::encrypt(&100000, &pk);
+    // println!("Finished Encrypting");
     // let dc = bjj_ah_elgamal::decrypt(&sk, c);
     // println!("dc: {}", dc);
 
@@ -144,10 +147,11 @@ fn test_additive_elgamal() -> bool {
 }
 
 fn test_bjj_ah_elgamal() -> bool {
-  //let num1 = 1_000_000u32;
-  //let num2 = 2_500_000u32;
-  let num1 = 10_000;
-  let num2 = 20_000;
+  let num1 = 1_000_000u32;
+  let num2 = 2_500_000u32;
+  let num3 = 0u32;
+//   let num1 = 10_000;
+//   let num2 = 20_000;
 
   let sk = bjj_ah_elgamal::get_sk();
   let pk = bjj_ah_elgamal::sk_to_pk(&sk);
@@ -156,10 +160,12 @@ fn test_bjj_ah_elgamal() -> bool {
 
   let c2 = bjj_ah_elgamal::encrypt(&num2, &pk);
 
-  let c = bjj_ah_elgamal::add_encryptions(&vec![c1, c2]);
+  let c3 = bjj_ah_elgamal::encrypt(&num3, &pk);
+
+  let c = bjj_ah_elgamal::add_encryptions(&vec![c1, c2, c3]);
   let rerand_c = bjj_ah_elgamal::rerandomize(&pk, c);
   let decrypt = bjj_ah_elgamal::decrypt(&sk, rerand_c);
 
   println!("{}", decrypt);
-  return decrypt == num1 + num2;
+  return decrypt == num1 + num2 + num3;
 }
