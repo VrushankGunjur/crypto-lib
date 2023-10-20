@@ -45,12 +45,15 @@ fn main() {
     // try encrypting 0. Doesn't support it! Need to do + 1 for encrypt and - 1
     // when sending back a decryption.
 
-    // let sk = bjj_ah_elgamal::get_sk();
-    // let pk = bjj_ah_elgamal::sk_to_pk(&sk);
-    // let c = bjj_ah_elgamal::encrypt(&100000, &pk);
-    // println!("Finished Encrypting");
-    // let dc = bjj_ah_elgamal::decrypt(&sk, c);
-    // println!("dc: {}", dc);
+    let sk = bjj_ah_elgamal::get_sk();
+    let pk = bjj_ah_elgamal::sk_to_pk(&sk);
+    let c1 = bjj_ah_elgamal::encrypt(&5, &pk);
+    let c2 = bjj_ah_elgamal::encrypt(&2, &pk);
+
+    let c = bjj_ah_elgamal::subtract_encryptions(c1, c2);
+    println!("Finished Encrypting");
+    let dc = bjj_ah_elgamal::decrypt(&sk, c);
+    println!("dc: {}", dc);
 
 
     // let mut pt = bjj_ah_elgamal::get_point(&1_000_000);
@@ -150,6 +153,7 @@ fn test_bjj_ah_elgamal() -> bool {
   let num1 = 1_000_000u32;
   let num2 = 2_500_000u32;
   let num3 = 0u32;
+  let num4 = 1u32;
 //   let num1 = 10_000;
 //   let num2 = 20_000;
 
@@ -162,7 +166,10 @@ fn test_bjj_ah_elgamal() -> bool {
 
   let c3 = bjj_ah_elgamal::encrypt(&num3, &pk);
 
-  let c = bjj_ah_elgamal::add_encryptions(&vec![c1, c2, c3]);
+  let c4 = bjj_ah_elgamal::encrypt(&num4, &pk);
+  let mut c = bjj_ah_elgamal::add_encryptions(&vec![c1, c2, c3]);
+
+  c = bjj_ah_elgamal::subtract_encryptions(c, c4);
   let rerand_c = bjj_ah_elgamal::rerandomize(&pk, &c);
 
   assert!(rerand_c.0.x != c.0.x);
@@ -170,5 +177,5 @@ fn test_bjj_ah_elgamal() -> bool {
   let decrypt = bjj_ah_elgamal::decrypt(&sk, rerand_c);
 
   println!("{}", decrypt);
-  return decrypt == num1 + num2 + num3;
+  return decrypt == num1 + num2 + num3 - num4;
 }

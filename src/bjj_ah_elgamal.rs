@@ -199,3 +199,17 @@ pub fn add_encryptions(cs: &Vec<(PointProjective, PointProjective)>) -> (PointPr
   }
   return (e_sum, v_sum);
 }
+
+pub fn subtract_encryptions(c1: (PointProjective, PointProjective), c2: (PointProjective, PointProjective)) -> (PointProjective, PointProjective) {
+    let e1 = c1.0.clone();
+    let v1 = c1.1.clone();
+
+
+    let mut e2_neg = c2.0.clone();
+    let mut v2_neg = c2.1.clone();
+    e2_neg.x.negate();
+    v2_neg.x.negate();
+
+
+    return (e1.add(&e2_neg), v1.add(&v2_neg));
+}
