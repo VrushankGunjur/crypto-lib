@@ -45,7 +45,7 @@ fn main() {
 
     // let sk = bjj_ah_elgamal::get_sk();
     // let pk = bjj_ah_elgamal::sk_to_pk(&sk);
-    // let c = bjj_ah_elgamal::encrypt(&0, &pk);
+    // let c = bjj_ah_elgamal::encrypt(&1, &pk);
     // let dc = bjj_ah_elgamal::decrypt(&sk, c);
     // println!("dc: {}", dc);
 
@@ -144,8 +144,10 @@ fn test_additive_elgamal() -> bool {
 }
 
 fn test_bjj_ah_elgamal() -> bool {
-  let num1 = 1_000_000u32;
-  let num2 = 2_500_000u32;
+  //let num1 = 1_000_000u32;
+  //let num2 = 2_500_000u32;
+  let num1 = 10_000;
+  let num2 = 20_000;
 
   let sk = bjj_ah_elgamal::get_sk();
   let pk = bjj_ah_elgamal::sk_to_pk(&sk);
