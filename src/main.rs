@@ -163,7 +163,10 @@ fn test_bjj_ah_elgamal() -> bool {
   let c3 = bjj_ah_elgamal::encrypt(&num3, &pk);
 
   let c = bjj_ah_elgamal::add_encryptions(&vec![c1, c2, c3]);
-  let rerand_c = bjj_ah_elgamal::rerandomize(&pk, c);
+  let rerand_c = bjj_ah_elgamal::rerandomize(&pk, &c);
+
+  assert!(rerand_c.0.x != c.0.x);
+
   let decrypt = bjj_ah_elgamal::decrypt(&sk, rerand_c);
 
   println!("{}", decrypt);

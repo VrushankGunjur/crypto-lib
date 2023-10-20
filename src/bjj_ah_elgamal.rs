@@ -100,7 +100,7 @@ pub fn decrypt(sk: &BigInt, c: (PointProjective, PointProjective)) -> u32 {
   return m;
 }
 
-pub fn rerandomize(pk: &Point, c: (PointProjective, PointProjective)) -> (PointProjective, PointProjective) {
+pub fn rerandomize(pk: &Point, c: &(PointProjective, PointProjective)) -> (PointProjective, PointProjective) {
 
   let (e, v) = c;
   //print_point(pk, "pk");
@@ -128,9 +128,8 @@ pub fn rerandomize(pk: &Point, c: (PointProjective, PointProjective)) -> (PointP
 pub fn discrete_log(g_m: &mut PointProjective) -> u32 {
     // first, check for 0
     // g*0 = O
-
     if g_m.z.is_zero() {
-        return 0;   // if it's the point at infinity
+        return 0;   // if it's the point at infinity -- special case
     }
 
     let g_m_affine = g_m.affine();
@@ -161,7 +160,7 @@ pub fn discrete_log(g_m: &mut PointProjective) -> u32 {
     for k in 1..(t+1) {
         for i in 0..t{
             if test_equality(&mut ring[k as usize], &mut small_steps[i as usize]) {
-                return (k * t) - i; // -1 adjustion factor to account for no encryption of 0
+                return (k * t) - i;
             }
         }
     } 
