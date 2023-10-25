@@ -3,10 +3,6 @@ use lazy_static::lazy_static;
 use ff::*;
 use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
 
-//use poseidon_rs::Fr;
-//pub type Fr = poseidon_rs::Fr; // alias
-
-
 lazy_static! {
   // generator g
   static ref B8: Point = Point {
@@ -136,13 +132,11 @@ pub fn discrete_log(g_m: &mut PointProjective) -> u32 {
     let q: u32 = 16_192_576;
     //let t = (q as f64).sqrt() as u32;
     let t = 4024;
-    println!("q: {}, t: {}", q, t);
+    //println!("q: {}, t: {}", q, t);
 
-    //let num_big_steps = ((q/t) as u32) * t;
-    let mut ring: Vec<Point> = vec![B8.clone(); (t+1) as usize];
+    let mut ring: Vec<Point> = vec![B8.clone(); (t+1) as usize];    // 0th index is unused.
     for i in 1..(t+1) {
         // g^1, g^t, g^2t, g^3t, ...
-        //println!("ring[{}] = {}", i,  t *i);
         ring[i as usize] = ring[i as usize].mul_scalar(&(t * i).to_bigint().unwrap());
     }
 
@@ -153,10 +147,10 @@ pub fn discrete_log(g_m: &mut PointProjective) -> u32 {
     for i in 1..t {
         cur_step = cur_step.projective().add(&g).affine();
         small_steps[i as usize] = cur_step.clone();
-        //small_steps[i as usize] = g_m.mul_scalar(&i.to_bigint().unwrap());
     }
 
-    // check if smallsteps[i] == ring[j]
+    // check if smallsteps[i] == ring[j]. The larger the number, the more
+    // iterations of the outer loop we have to go to. Can we speed this up?
     for k in 1..(t+1) {
         for i in 0..t{
             if test_equality(&mut ring[k as usize], &mut small_steps[i as usize]) {
@@ -207,7 +201,7 @@ pub fn subtract_encryptions(c1: (PointProjective, PointProjective), c2: (PointPr
 
     let mut e2_neg = c2.0.clone();
     let mut v2_neg = c2.1.clone();
-    e2_neg.x.negate();
+    e2_neg.x.negate();  // negate encryption
     v2_neg.x.negate();
 
 

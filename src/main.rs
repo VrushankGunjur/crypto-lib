@@ -45,15 +45,15 @@ fn main() {
     // try encrypting 0. Doesn't support it! Need to do + 1 for encrypt and - 1
     // when sending back a decryption.
 
-    let sk = bjj_ah_elgamal::get_sk();
-    let pk = bjj_ah_elgamal::sk_to_pk(&sk);
-    let c1 = bjj_ah_elgamal::encrypt(&5, &pk);
-    let c2 = bjj_ah_elgamal::encrypt(&2, &pk);
+    // let sk = bjj_ah_elgamal::get_sk();
+    // let pk = bjj_ah_elgamal::sk_to_pk(&sk);
+    // let c1 = bjj_ah_elgamal::encrypt(&5, &pk);
+    // let c2 = bjj_ah_elgamal::encrypt(&60000, &pk);
 
-    let c = bjj_ah_elgamal::subtract_encryptions(c1, c2);
-    println!("Finished Encrypting");
-    let dc = bjj_ah_elgamal::decrypt(&sk, c);
-    println!("dc: {}", dc);
+    // let c = bjj_ah_elgamal::subtract_encryptions(c1, c2);
+    // println!("Finished Encrypting");
+    // let dc = bjj_ah_elgamal::decrypt(&sk, c);
+    // println!("dc: {}", dc);
 
 
     // let mut pt = bjj_ah_elgamal::get_point(&1_000_000);
@@ -121,12 +121,13 @@ fn test_elgamal() -> bool {
 
   let decrypted_msg = elgamal::decrypt(sk, v, ciphertext, &nonce);
 
-  //println!("{}", decrypted_msg);
   assert_eq!(decrypted_msg, msg);
-  //println!("Elgamal Operational: {}", decrypted_msg == msg);
   return decrypted_msg == msg;
 }
 
+/*
+    This version of additive elgamal doesn't currently support fast discrete log, or enc(0) and encryption subtraction.
+*/
 fn test_additive_elgamal() -> bool {
   let num1: u32 = 2000u32;
   let num2: u32 = 3000u32;
