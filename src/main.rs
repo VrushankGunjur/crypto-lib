@@ -7,10 +7,20 @@ mod elgamal;
 mod additiveeglamal;
 mod bjj_ah_elgamal;
 mod hash;
-use ff::{PrimeField, Field};
+mod merklehelper;
+use ff::PrimeField;
+//use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
+use poseidon_rs::Fr;
+//use ff::{PrimeField, Field};
 
 fn main() {
     //signature::print_hello();
+
+    let leaves = vec![Fr::from_str("0").unwrap(), Fr::from_str("1").unwrap()];
+
+    let ret = merklehelper::gen_proof(&leaves, 2, 1).unwrap();
+
+    println!("Root: {}", ret.0.to_string());
 
     let mut pass = 0u8;
     let sig_pass = test_sig();
@@ -38,7 +48,8 @@ fn main() {
 
     
 
-    let ret = hash::poseidon().to_string();
+    let p = hash::poseidon_hasher();
+    let ret = hash::poseidon("1", &p).to_string();
     println!("test {}", ret);
 
 

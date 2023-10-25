@@ -1,10 +1,13 @@
+use std::str::FromStr;
+
 //use ark_bn254::Fr;
 //use ark_bn254::Fr;
-use poseidon_rs::Fr;
+use poseidon_rs::{Fr, Poseidon};
 // use babyjubjub_rs::*;
 // use ff::{PrimeField, Field};
 use sha2::{Sha256, Digest};
 use blst::*;
+use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
 use ff::PrimeField;
 //use ff_ce::PrimeField;
 
@@ -31,14 +34,19 @@ pub fn hash_to_blst_scalar(hash: &[u8]) -> blst_scalar {
   return h_msg
 }
 
-pub fn poseidon() -> Fr {
-    let p = poseidon_rs::Poseidon::new();
+pub fn poseidon_hasher() -> Poseidon {
+    return poseidon_rs::Poseidon::new();
+}
 
-    let p1 = Fr::from_str("12242166908188651009877250812424843524687801523336557272219921456462821518061").unwrap();
+pub fn poseidon(input: &str, p: &Poseidon) -> BigInt {
+    //let p = poseidon_rs::Poseidon::new();
+
+    let p1 = Fr::from_str(input).unwrap();
+    //let p1 = Fr::from_str("12242166908188651009877250812424843524687801523336557272219921456462821518061").unwrap();
     let mut arr = Vec::new();
     arr.push(p1.clone());
 
-    return p.hash(arr.clone()).unwrap();
+    return BigInt::from_str(&p.hash(arr.clone()).unwrap().to_string()).unwrap();
 }
 
 // pub fn mimc_bn254() {
