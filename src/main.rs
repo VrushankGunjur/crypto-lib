@@ -16,8 +16,6 @@ use poseidon_rs::Fr;
 fn main() {
     //signature::print_hello();
 
-    let leaves = vec![Fr::from_str("1").unwrap(), Fr::from_str("2").unwrap()];
-
     // let ret = merklehelper::gen_proof_naive(&leaves, 4, 1).unwrap();
 
     // println!("Root: {}", ret.0.to_string());
@@ -25,13 +23,6 @@ fn main() {
     // for (i, e) in hp.iter().enumerate() {
     //     println!("{}: {}", i, e.to_string());
     // }
-    
-    let ss_ret = merklehelper::gen_proof_padded(&leaves, 20, 1).unwrap();
-    println!("SRoot: {}", ss_ret.0.to_string());
-    let hp = ss_ret.1;
-    for (i, e) in hp.iter().enumerate() {
-        println!("{}: {}", i, e.to_string());
-    }
 
     let mut pass = 0u8;
     let sig_pass = test_sig();
@@ -54,7 +45,10 @@ fn main() {
     println!("BJJ Additive Elgamal test passing: {}", bjj_additive_elgamal_pass);
     pass += additive_elgamal_pass as u8;
 
-    println!("Tests passing: {}%", (pass / 3) * 100);
+    let merkleization_pass = test_merkleization();
+    println!("Merkleization test passing: {}", merkleization_pass);
+    pass += merkleization_pass as u8;
+    println!("Tests passing: {}%", (pass as f32 / 6_f32) * 100_f32);
 
 
     
@@ -201,4 +195,16 @@ fn test_bjj_ah_elgamal() -> bool {
 
   println!("{}", decrypt);
   return decrypt == num1 + num2 + num3 - num4;
+}
+
+fn test_merkleization() -> bool {
+    let leaves = vec![Fr::from_str("1").unwrap(), Fr::from_str("2").unwrap()];
+    let ss_ret = merklehelper::gen_proof_padded(&leaves, 4, 1).unwrap();
+    println!("SRoot: {}", ss_ret.0.to_string());
+    // let hp = ss_ret.1;
+    // for (i, e) in hp.iter().enumerate() {
+    //     println!("{}: {}", i, e.to_string());
+    // }
+
+    return ss_ret.0.to_string() == "Fr(0x0ee44ff6038010b81e2e310efd8abfeb658b8f8f5e415bc90ac4426683f9c958)";
 }
