@@ -1,6 +1,10 @@
 use blst::*;
 use rand::RngCore;
 
+/*
+    BLS Signature Scheme
+*/
+
 pub fn print_hello(){
   println!("Hello from Signature.rs!");
 }

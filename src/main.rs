@@ -16,11 +16,22 @@ use poseidon_rs::Fr;
 fn main() {
     //signature::print_hello();
 
-    let leaves = vec![Fr::from_str("0").unwrap(), Fr::from_str("1").unwrap()];
+    let leaves = vec![Fr::from_str("1").unwrap(), Fr::from_str("2").unwrap()];
 
-    let ret = merklehelper::gen_proof(&leaves, 2, 1).unwrap();
+    // let ret = merklehelper::gen_proof_naive(&leaves, 4, 1).unwrap();
 
-    println!("Root: {}", ret.0.to_string());
+    // println!("Root: {}", ret.0.to_string());
+    // let mut hp = ret.1;
+    // for (i, e) in hp.iter().enumerate() {
+    //     println!("{}: {}", i, e.to_string());
+    // }
+    
+    let ss_ret = merklehelper::gen_proof_smart_padded(&leaves, 20, 1).unwrap();
+    println!("SRoot: {}", ss_ret.0.to_string());
+    let hp = ss_ret.1;
+    for (i, e) in hp.iter().enumerate() {
+        println!("{}: {}", i, e.to_string());
+    }
 
     let mut pass = 0u8;
     let sig_pass = test_sig();
@@ -48,9 +59,9 @@ fn main() {
 
     
 
-    let p = hash::poseidon_hasher();
-    let ret = hash::poseidon("1", &p).to_string();
-    println!("test {}", ret);
+    // let p = hash::poseidon_hasher();
+    // let ret = hash::poseidon("1", &p).to_string();
+    // println!("test {}", ret);
 
 
     // try encrypting 0. Doesn't support it! Need to do + 1 for encrypt and - 1

@@ -2,6 +2,10 @@ use blst::*;
 use std::ptr::null;
 use rand::RngCore;
 
+/*
+    BLS Blind Signatures
+*/
+
 pub fn gen_r() -> blst_scalar {
   let mut rng = rand::thread_rng();
   let mut r_seed: [u8; 32] = [1u8; 32];
