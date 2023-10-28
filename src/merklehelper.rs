@@ -16,49 +16,49 @@ use crate::hash;
 // type TrieNodeRef = Rc<RefCell<TrieNode>>;
 
 // calculate the hashes, return (root, hashpath)
-pub fn gen_proof_naive(input: &Vec<Fr>, hashpath_len: usize, target_idx: u32) -> Option<(Fr, Vec<Fr>)> {
-    let hasher = poseidon_rs::Poseidon::new();
-    let input_len = input.len();
-    let target_num_leaves = u32::pow(2, hashpath_len as u32) as usize;
+// pub fn gen_proof_naive(input: &Vec<Fr>, hashpath_len: usize, target_idx: u32) -> Option<(Fr, Vec<Fr>)> {
+//     let hasher = poseidon_rs::Poseidon::new();
+//     let input_len = input.len();
+//     let target_num_leaves = u32::pow(2, hashpath_len as u32) as usize;
 
-    if input_len > target_num_leaves {
-        // throw an error
-        return None; //Err("Invalid Hashpath Length");  // can't make a hashpath this small for the input data
-    }
+//     if input_len > target_num_leaves {
+//         // throw an error
+//         return None; //Err("Invalid Hashpath Length");  // can't make a hashpath this small for the input data
+//     }
 
-    // instead, make a subtree of 0's. Easy to compute that root, since it's
-    // symmetric. 
-    //let leaves = input.copy();
-    let mut leaves = input.to_owned();
-    leaves.extend(vec![Fr::from_str("0").unwrap(); target_num_leaves - input_len]);
-    println!("{}", leaves.len());
+//     // instead, make a subtree of 0's. Easy to compute that root, since it's
+//     // symmetric. 
+//     //let leaves = input.copy();
+//     let mut leaves = input.to_owned();
+//     leaves.extend(vec![Fr::from_str("0").unwrap(); target_num_leaves - input_len]);
+//     println!("{}", leaves.len());
 
-    // first, hash all the leaves. Should this be of type Fr?
-    let mut cur = vec![Fr::from_str("0").unwrap(); leaves.len()];
-    for i in 0..leaves.len() {
-        cur[i] = hasher.hash(vec![leaves[i]]).unwrap();
-    }
+//     // first, hash all the leaves. Should this be of type Fr?
+//     let mut cur = vec![Fr::from_str("0").unwrap(); leaves.len()];
+//     for i in 0..leaves.len() {
+//         cur[i] = hasher.hash(vec![leaves[i]]).unwrap();
+//     }
     
-    let mut hashpath = vec![Fr::from_str("0").unwrap(); hashpath_len];
-    let mut level_pos = target_idx;
+//     let mut hashpath = vec![Fr::from_str("0").unwrap(); hashpath_len];
+//     let mut level_pos = target_idx;
 
-    for h_i in 0..hashpath_len {
-        if level_pos % 2 == 0 {
-            hashpath[h_i] = cur[(level_pos + 1) as usize];
-        } else {
-            hashpath[h_i] = cur[(level_pos - 1) as usize];
-        }
-        let mut new_leaves = vec![Fr::from_str("0").unwrap(); cur.len() / 2];
-        for (i, l) in cur.chunks(2).enumerate() {
-            new_leaves[i] = hasher.hash(vec![l[0], l[1]]).unwrap();
-        }
-        cur = new_leaves;
-        level_pos /= 2;
-        println!("level: {}", h_i);
-    }
+//     for h_i in 0..hashpath_len {
+//         if level_pos % 2 == 0 {
+//             hashpath[h_i] = cur[(level_pos + 1) as usize];
+//         } else {
+//             hashpath[h_i] = cur[(level_pos - 1) as usize];
+//         }
+//         let mut new_leaves = vec![Fr::from_str("0").unwrap(); cur.len() / 2];
+//         for (i, l) in cur.chunks(2).enumerate() {
+//             new_leaves[i] = hasher.hash(vec![l[0], l[1]]).unwrap();
+//         }
+//         cur = new_leaves;
+//         level_pos /= 2;
+//         println!("level: {}", h_i);
+//     }
 
-    return Some((cur[0], hashpath));
-}
+//     return Some((cur[0], hashpath));
+// }
 
 
 fn merkleize(input: &Vec<Fr>, target_idx: u32, leaves: &Vec<Fr>, hashpath: &mut Vec<Fr>, height: u32, hasher: &Poseidon) -> Fr {
@@ -91,7 +91,7 @@ fn root_zero_tree(height: usize, hasher: &Poseidon) -> Fr {
     return root
 }
 
-pub fn gen_proof_smart_padded(input: &Vec<Fr>, hashpath_len: usize, target_idx: u32) -> Option<(Fr, Vec<Fr>)> {
+pub fn gen_proof_padded(input: &Vec<Fr>, hashpath_len: usize, target_idx: u32) -> Option<(Fr, Vec<Fr>)> {
     let hasher = poseidon_rs::Poseidon::new();
     let input_len = input.len();
     let target_num_leaves = u32::pow(2, hashpath_len as u32) as usize;

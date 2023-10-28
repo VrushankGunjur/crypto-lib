@@ -26,7 +26,7 @@ fn main() {
     //     println!("{}: {}", i, e.to_string());
     // }
     
-    let ss_ret = merklehelper::gen_proof_smart_padded(&leaves, 20, 1).unwrap();
+    let ss_ret = merklehelper::gen_proof_padded(&leaves, 20, 1).unwrap();
     println!("SRoot: {}", ss_ret.0.to_string());
     let hp = ss_ret.1;
     for (i, e) in hp.iter().enumerate() {
