@@ -78,7 +78,7 @@ fn merkleize(input: &Vec<Fr>, target_idx: u32, leaves: &Vec<Fr>, hashpath: &mut 
         }
         cur = new_leaves;
         level_pos /= 2;
-        println!("level: {}", h_i);
+        //println!("level: {}", h_i);
     }
     return cur[0];
 }

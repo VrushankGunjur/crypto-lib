@@ -24,13 +24,36 @@ lazy_static! {
   };
 }
 
-fn print_point(p: &Point, name: &str) {
+pub fn print_point(p: &Point, name: &str) {
   println!("{}.x: {}", name, p.x.to_string());
   println!("{}.y: {}", name, p.y.to_string());
 }
 
+pub fn print_point_raw(p: &Point) {
+    let x = p.x.to_string();
+    let y = p.y.to_string();
+    print!("\"{}\", \"{}\", ", &x[3..x.len()-1], &y[3..y.len()-1]);
+}
+
+pub fn point_x_str(p: &Point) -> String {
+    let x = p.x.to_string();
+    return x[3..x.len()-1].to_string();
+}
+
+pub fn point_y_str(p: &Point) -> String {
+    let y = p.y.to_string();
+    return y[3..y.len()-1].to_string();
+}
+
+
+pub fn print_point_proj(p: &PointProjective, name: &str) {
+    println!("{}.x: {}", name, p.x.to_string());
+    println!("{}.y: {}", name, p.y.to_string());
+    println!("{}.z: {}", name, p.z.to_string());
+}
+
 // adjust range
-fn gen_rand_bigint () -> BigInt {
+pub fn gen_rand_bigint () -> BigInt {
   let mut rng = rand::thread_rng();
   let low =  1.to_bigint().unwrap();
   let high = 1000000.to_bigint().unwrap();
@@ -50,9 +73,10 @@ pub fn sk_to_pk (sk: &BigInt) -> Point {
   return r;
 }
 
-pub fn encrypt(msg: &u32, pk: &Point) -> (PointProjective, PointProjective) {
+pub fn encrypt(msg: &u32, pk: &Point, randomness: &BigInt) -> (PointProjective, PointProjective) {
   let adjusted_msg = msg;
-  let beta = gen_rand_bigint();
+  //let beta = gen_rand_bigint(); // randomness
+  let beta = randomness;
   let v = B8.mul_scalar(&beta);  // g * sk2 = v
   //let d = O.clone();
   let w = pk.mul_scalar(&beta); // pk * sk2 = g * sk * sk2 = w
@@ -74,7 +98,6 @@ fn test_equality(p1: &mut Point, p2: &mut Point) -> bool {
   return p1.x.eq(&p2.x) && p1.y.eq(&p2.y);
 }
 
-
 pub fn decrypt(sk: &BigInt, c: (PointProjective, PointProjective)) -> u32 {
   let (e, v) = c;
 
@@ -83,7 +106,6 @@ pub fn decrypt(sk: &BigInt, c: (PointProjective, PointProjective)) -> u32 {
   println!("sk: {}", sk.to_string());
 
   let mut g_m: PointProjective = e.clone();
-
   let mut w = v.affine().mul_scalar(&sk);
   w.x.negate(); // negate point
 
