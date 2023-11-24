@@ -61,7 +61,7 @@ use crate::hash;
 // }
 
 
-fn merkleize(input: &Vec<Fr>, target_idx: u32, leaves: &Vec<Fr>, hashpath: &mut Vec<Fr>, height: u32, hasher: &Poseidon) -> Fr {
+fn merkleize(target_idx: u32, leaves: &Vec<Fr>, hashpath: &mut Vec<Fr>, height: u32, hasher: &Poseidon) -> Fr {
     let mut level_pos = target_idx;
 
     let mut cur = leaves.clone();
@@ -91,7 +91,7 @@ fn root_zero_tree(height: usize, hasher: &Poseidon) -> Fr {
     return root
 }
 
-pub fn gen_proof_padded(input: &Vec<Fr>, hashpath_len: usize, target_idx: u32) -> Option<(Fr, Vec<Fr>)> {
+pub fn gen_proof_padded(input: &Vec<Vec<Fr>>, hashpath_len: usize, target_idx: u32) -> Option<(Fr, Vec<Fr>)> {
     let hasher = poseidon_rs::Poseidon::new();
     let input_len = input.len();
     let target_num_leaves = u32::pow(2, hashpath_len as u32) as usize;
@@ -105,17 +105,20 @@ pub fn gen_proof_padded(input: &Vec<Fr>, hashpath_len: usize, target_idx: u32) -
     let t_path_len = (input_len as f32).log2().ceil() as u32;
     let pad_len = (2_u32.pow(t_path_len)) - input_len as u32;
     let mut leaves = input.to_owned();
-    leaves.extend(vec![Fr::from_str("0").unwrap(); pad_len as usize]);
+    leaves.extend(vec![vec![Fr::from_str("0").unwrap()]; pad_len as usize]);
     println!("{}", leaves.len());
 
     // Hash T up to T_root. We start by hashing each of the values.
+
+    // update: now hashes arbitrary leaves (size >= 1)
     let mut cur: Vec<Fr> = Vec::new();
     for i in 0..leaves.len() {
-        cur.push(hasher.hash(vec![leaves[i]]).unwrap());
+        let t = &leaves[i];
+        cur.push(hasher.hash(leaves[i].clone()).unwrap());
     }
     let mut hashpath: Vec<Fr> = Vec::new();
 
-    let t_root = merkleize(&input, target_idx, &cur, &mut hashpath, t_path_len, &hasher);
+    let t_root = merkleize(target_idx, &cur, &mut hashpath, t_path_len, &hasher);
     
     //println!("T_root: {}", t_root);
 

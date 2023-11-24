@@ -8,7 +8,7 @@ mod hash;
 mod merklehelper;
 use ff::PrimeField;
 //use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
-use poseidon_rs::Fr;
+use poseidon_rs::{Fr, Poseidon};
 
 use rand::Rng;
 use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
@@ -16,6 +16,7 @@ use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
+use std::str::FromStr;
 
 use crate::{bjj_ah_elgamal::print_point, blindsignature::gen_r};
 //use ff::{PrimeField, Field};
@@ -60,9 +61,8 @@ fn main() {
 
     //gen_encrypt();
 
-    //gen_r_del_cli();
-    //gen_r_del_solidity();
     gen_r_del_master().unwrap();
+    gen_r_vote_master().unwrap();
 }
 
 fn test_sig() -> bool {
@@ -163,7 +163,7 @@ fn test_bjj_ah_elgamal() -> bool {
   let mut c = bjj_ah_elgamal::add_encryptions(&vec![c1, c2, c3]);
 
   c = bjj_ah_elgamal::subtract_encryptions(c, c4);
-  let rerand_c = bjj_ah_elgamal::rerandomize(&pk, &c);
+  let rerand_c = bjj_ah_elgamal::rerandomize(&pk, &c, &bjj_ah_elgamal::gen_rand_bigint());
 
   assert!(rerand_c.0.x != c.0.x);
 
@@ -174,7 +174,7 @@ fn test_bjj_ah_elgamal() -> bool {
 }
 
 fn test_merkleization() -> bool {
-    let leaves = vec![Fr::from_str("1").unwrap(), Fr::from_str("2").unwrap()];
+    let leaves = vec![vec![Fr::from_str("1").unwrap()], vec![Fr::from_str("2").unwrap()]];
     let ss_ret = merklehelper::gen_proof_padded(&leaves, 4, 1).unwrap();
     println!("SRoot: {}", ss_ret.0.to_string());
     // let hp = ss_ret.1;
@@ -199,13 +199,191 @@ fn gen_encrypt() {
     bjj_ah_elgamal::print_point(&ret.1.affine(), "v");
 }
 
+fn gen_r_vote_master() -> io::Result<()>  {
 
-fn gen_r_del_master() -> io::Result<()> {
-    let solidity_path = "inputs.txt";
+    // enc(T_v) is stored in a merkle tree of all the delegates' voting powers
+    // For R_vote, we're trying to send a triple of (enc(0, r1),rerand(enc(T_v),r2),enc(0,r))
+
+    let solidity_path = "vote_inputs.txt";
     let iiopts = OpenOptions::new().create(true).append(true).open(solidity_path)?;
     let mut inputsarray = io::BufWriter::new(iiopts);
 
-    let prover_path = "Prover.txt";
+    let prover_path = "vote_Prover.txt";
+    let piopts = OpenOptions::new().create(true).append(true).open(prover_path)?;
+    let mut proverinfo = io::BufWriter::new(piopts);
+
+    let mut rng = rand::thread_rng();
+
+    let sk = bjj_ah_elgamal::get_sk();
+    let pk = bjj_ah_elgamal::sk_to_pk(&sk);
+
+    // pk_enc_x, pk_enc_y
+    writeln!(inputsarray, "// pk_enc_x, pk_enc_y:")?;
+    let mut input_ctr = 0;
+    writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, bjj_ah_elgamal::point_x_str(&pk))?;
+    input_ctr += 1;
+    writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, bjj_ah_elgamal::point_y_str(&pk))?;
+    input_ctr += 1;
+
+    let mut randomness_str = "[".to_owned();
+
+    let mut random_states = Vec::new();
+    for _ in 0..3 {
+        let r = rng.gen_range(1..10).to_bigint().unwrap();
+        randomness_str.push_str(&("\"".to_owned() + &r.to_string() + "\", "));
+
+        random_states.push(r);
+    }
+    randomness_str = randomness_str[0..randomness_str.len()-2].to_string();
+    randomness_str.push_str("]");
+
+
+
+    let vote_choice = 1;  // 0 = Y, 1 = N, 2 = A
+    let voting_power = 300;
+
+    let vote_encryption = bjj_ah_elgamal::encrypt(&voting_power, &pk, &BigInt::from_str("2").unwrap());
+
+
+    // enc_delegate_voting_power
+    writeln!(inputsarray, "// enc_delegate_voting_power:")?;
+    writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, bjj_ah_elgamal::point_x_str(&vote_encryption.0.affine()))?;
+    input_ctr += 1;
+    writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, bjj_ah_elgamal::point_y_str(&vote_encryption.0.affine()))?;
+    input_ctr += 1;
+    writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, bjj_ah_elgamal::point_x_str(&vote_encryption.1.affine()))?;
+    input_ctr += 1;
+    writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, bjj_ah_elgamal::point_y_str(&vote_encryption.1.affine()))?;
+    input_ctr += 1;
+
+
+    // vote NO (Y/N/A)
+    // so at position 1, we store a rerandomization of our voting power
+    let vote_encs = vec![  bjj_ah_elgamal::encrypt(&0, &pk, &random_states[0]),
+                                                                    bjj_ah_elgamal::rerandomize(&pk, &vote_encryption, &random_states[1]),
+                                                                    //bjj_ah_elgamal::encrypt(&voting_power, &pk, &random_states[1]),
+                                                                    bjj_ah_elgamal::encrypt(&0, &pk, &random_states[2])];
+    
+
+    let enc_v_power_str: String = "[\"".to_owned() +    &bjj_ah_elgamal::point_x_str(&vote_encryption.0.affine()) + "\", \"" + 
+                                                        &bjj_ah_elgamal::point_y_str(&vote_encryption.0.affine()) + "\", \"" +
+                                                        &bjj_ah_elgamal::point_x_str(&vote_encryption.1.affine()) + "\", \"" +
+                                                        &bjj_ah_elgamal::point_y_str(&vote_encryption.1.affine()) + "\"]";
+
+    // turns encs to leaves vector, make encryptions string
+
+    let mut encryptions = "[".to_owned();
+
+    // DON'T LOOP OVER ENCS HERE -- ENCS is (Y,N,A). WE WANT TO LOOP OVER
+    // DELEGATE VOTE COUNTS.
+
+
+    writeln!(inputsarray, "// encryptions:")?;
+    for e in vote_encs.iter() {
+
+        let e_x =  bjj_ah_elgamal::point_x_str(&e.0.affine());
+        let e_y =  bjj_ah_elgamal::point_y_str(&e.0.affine());
+        let v_x =  bjj_ah_elgamal::point_x_str(&e.1.affine());
+        let v_y =  bjj_ah_elgamal::point_y_str(&e.1.affine());
+        
+        encryptions.push_str(&("\"".to_owned() + &e_x + "\", "));
+        encryptions.push_str(&("\"".to_owned() + &e_y + "\", "));
+        encryptions.push_str(&("\"".to_owned() + &v_x + "\", "));
+        encryptions.push_str(&("\"".to_owned() + &v_y + "\", "));
+
+        writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, e_x)?;
+        input_ctr += 1;
+        writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, e_y)?;
+        input_ctr += 1;
+        writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, v_x)?;
+        input_ctr += 1;
+        writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, v_y)?;
+        input_ctr += 1;
+        
+        //bjj_ah_elgamal::print_point(&e.0.affine(), "e");
+        //bjj_ah_elgamal::print_point(&e.1.affine(), "v");
+        //inp.push(vec![e.0.affine().x, e.0.affine().y, e.1.affine().x, e.1.affine().y]);
+    }
+    encryptions = encryptions[0..encryptions.len()-2].to_string();
+    encryptions.push_str("]");
+
+
+    // manufacture merkle tree
+    let mut inp_leaves = Vec::new();
+    let delegate_idx = 3;
+
+    // delegate_idx
+    let d_idx_string = format!("{:x}", delegate_idx);
+    let padding = "0x".to_string() + &String::from_utf8(vec![b'0'; 64-d_idx_string.len()]).unwrap();
+    writeln!(inputsarray, "// delegate_idx:")?;
+    writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, padding + &d_idx_string)?;
+    input_ctr += 1;
+
+    for i in 0..4 {
+        if i == delegate_idx {
+            
+            inp_leaves.push(vec![vote_encryption.0.affine().x, vote_encryption.0.affine().y, vote_encryption.1.affine().x, vote_encryption.1.affine().y]);
+        } else {
+            let other_enc = bjj_ah_elgamal::encrypt(&(i+1), &pk, &BigInt::from_str("3").unwrap());
+            inp_leaves.push(vec![other_enc.0.affine().x, other_enc.0.affine().y, other_enc.1.affine().x, other_enc.1.affine().y])
+        }
+    }
+
+
+    // each of these inputs must be 4s of Frs (e_x, e_y, v_x, v_y). The entry
+    // has to be hash4'd. Make the 'input' to merkle helper a vector of
+    // vectors, usually the secondary vectors are just 1-vectors, here they'd
+    // be 4-vectors. Then, we pass in raw encryption quadss as inputs
+    let (root, hashpath) = merklehelper::gen_proof_padded(
+        &inp_leaves,
+        20, delegate_idx).unwrap();
+
+    // write merkle information to verifier inputs
+    let root_string = root.to_string();
+    writeln!(inputsarray, "// root_eid:")?;
+    writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, &root_string[3..root_string.len()-1])?;
+    input_ctr += 1;
+
+    writeln!(inputsarray, "// voting_power_hashpath:")?;
+    for m in hashpath.iter() {
+        let m_str = m.to_string();
+        writeln!(inputsarray, "inputs[{}] = bytes32({});", input_ctr, &m_str[3..m_str.len()-1])?;
+        input_ctr += 1;
+    }
+
+    // write all information to Prover.toml
+    writeln!(proverinfo, "delegate_idx = \"{}\"", delegate_idx)?;
+    writeln!(proverinfo, "enc_delegate_voting_power = {}", enc_v_power_str)?;
+    writeln!(proverinfo, "encryptions = {}", encryptions)?;
+    writeln!(proverinfo, "i = \"{}\"", vote_choice)?;
+    writeln!(proverinfo, "pk_enc_x = \"{}\"", bjj_ah_elgamal::point_x_str(&pk))?;
+    writeln!(proverinfo, "pk_enc_y = \"{}\"", bjj_ah_elgamal::point_y_str(&pk))?;
+    writeln!(proverinfo, "randomness = {}", randomness_str)?;
+
+    let root_string = root.to_string();
+    writeln!(proverinfo, "root_eid = \"{}\"", &root_string[3..root_string.len()-1])?;
+
+    // convert hashpath to string
+    let mut prover_hp_string = "[".to_owned();
+    for m in hashpath.iter() {
+        let mut cur = m.to_string();
+        cur = cur[3..cur.len()-1].to_string();
+        prover_hp_string.push_str(&("\"".to_owned() + &cur + "\", "))
+    }
+    prover_hp_string = prover_hp_string[0..prover_hp_string.len()-2].to_string();
+    prover_hp_string.push_str("]");
+
+    writeln!(proverinfo, "voting_power_hashpath = {}", prover_hp_string)?;
+
+    return Ok(());
+}
+
+fn gen_r_del_master() -> io::Result<()> {
+    let solidity_path = "del_inputs.txt";
+    let iiopts = OpenOptions::new().create(true).append(true).open(solidity_path)?;
+    let mut inputsarray = io::BufWriter::new(iiopts);
+
+    let prover_path = "del_Prover.txt";
     let piopts = OpenOptions::new().create(true).append(true).open(prover_path)?;
     let mut proverinfo = io::BufWriter::new(piopts);
 
@@ -307,10 +485,10 @@ fn gen_r_del_master() -> io::Result<()> {
 
     // merkle proof for T_v
     let (root, hashpath) = merklehelper::gen_proof_padded(
-        &vec![Fr::from_str("0").unwrap(),
-        Fr::from_str("1").unwrap(),
-        Fr::from_str(&tv.to_string()).unwrap(),
-        Fr::from_str("2").unwrap()],
+        &vec![vec![Fr::from_str("0").unwrap()],
+        vec![Fr::from_str("1").unwrap()],
+        vec![Fr::from_str(&tv.to_string()).unwrap()],
+        vec![Fr::from_str("2").unwrap()]],
         20, 2).unwrap();
     
     writeln!(inputsarray, "// Vote Root:")?;

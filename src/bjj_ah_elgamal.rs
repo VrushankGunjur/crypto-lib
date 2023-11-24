@@ -118,14 +118,14 @@ pub fn decrypt(sk: &BigInt, c: (PointProjective, PointProjective)) -> u32 {
   return m;
 }
 
-pub fn rerandomize(pk: &Point, c: &(PointProjective, PointProjective)) -> (PointProjective, PointProjective) {
+pub fn rerandomize(pk: &Point, c: &(PointProjective, PointProjective), r: &BigInt) -> (PointProjective, PointProjective) {
 
   let (e, v) = c;
   //print_point(pk, "pk");
   //print_point(&e, "e");
   //print_point(&v, "v");
 
-  let r = gen_rand_bigint();
+  //let r = gen_rand_bigint();
   //println!("r: {}", r.to_string());
 
 
