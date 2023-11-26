@@ -61,8 +61,9 @@ fn main() {
 
     //gen_encrypt();
 
-    gen_r_del_master().unwrap();
-    gen_r_vote_master().unwrap();
+    //gen_r_del_master().unwrap();
+    //gen_r_vote_master().unwrap();
+    gen_r_dec_master();
 }
 
 fn test_sig() -> bool {
@@ -199,6 +200,53 @@ fn gen_encrypt() {
     bjj_ah_elgamal::print_point(&ret.1.affine(), "v");
 }
 
+fn gen_r_dec_master() -> io::Result<()> {
+    let prover_path = "dec_Prover.txt";
+    let piopts = OpenOptions::new().create(true).append(true).open(prover_path)?;
+    let mut proverinfo = io::BufWriter::new(piopts); 
+
+    let mut rng = rand::thread_rng();
+    let sk = bjj_ah_elgamal::get_sk();
+    let pk = bjj_ah_elgamal::sk_to_pk(&sk);
+
+
+
+    // Y/N/A
+    let tally = vec![50_u32, 20_u32, 3_u32];
+
+    let mut cts = Vec::new();
+    let mut ct_string = "[".to_string();
+    // encrypt the tally to create cts
+    for v in tally.iter() {
+        let randomness = rng.gen_range(1..10).to_bigint().unwrap();
+        let ct = bjj_ah_elgamal::encrypt(v, &pk, &randomness);
+
+        let e_x =  bjj_ah_elgamal::point_x_str(&ct.0.affine());
+        let e_y =  bjj_ah_elgamal::point_y_str(&ct.0.affine());
+        let v_x =  bjj_ah_elgamal::point_x_str(&ct.1.affine());
+        let v_y =  bjj_ah_elgamal::point_y_str(&ct.1.affine());
+        
+        ct_string.push_str(&("\"".to_owned() + &e_x + "\", "));
+        ct_string.push_str(&("\"".to_owned() + &e_y + "\", "));
+        ct_string.push_str(&("\"".to_owned() + &v_x + "\", "));
+        ct_string.push_str(&("\"".to_owned() + &v_y + "\", "));
+
+        cts.push(ct);
+    }
+
+    ct_string = ct_string[0..ct_string.len()-2].to_string();
+    ct_string.push_str("]");
+    writeln!(proverinfo, "cts = {}", ct_string)?;
+
+    writeln!(proverinfo, "msg = [\"{}\", \"{}\", \"{}\"]", tally[0], tally[1], tally[2])?;
+
+    let sk_string = sk.to_string();
+    println!("SK: {}", sk_string);
+    writeln!(proverinfo, "sk = \"{}\"", &sk_string)?;
+
+    return Ok(());
+}
+
 fn gen_r_vote_master() -> io::Result<()>  {
 
     // enc(T_v) is stored in a merkle tree of all the delegates' voting powers
@@ -211,6 +259,12 @@ fn gen_r_vote_master() -> io::Result<()>  {
     let prover_path = "vote_Prover.txt";
     let piopts = OpenOptions::new().create(true).append(true).open(prover_path)?;
     let mut proverinfo = io::BufWriter::new(piopts);
+
+    let rust_prover_path = "rust_prover.txt";
+    let riopts = OpenOptions::new().create(true).append(true).open(rust_prover_path)?;
+    let mut witnessmap = io::BufWriter::new(riopts);
+    let mut witness_ctr = 1;
+
 
     let mut rng = rand::thread_rng();
 
@@ -228,7 +282,7 @@ fn gen_r_vote_master() -> io::Result<()>  {
     let mut randomness_str = "[".to_owned();
 
     let mut random_states = Vec::new();
-    for _ in 0..3 {
+    for i in 0..3 {
         let r = rng.gen_range(1..10).to_bigint().unwrap();
         randomness_str.push_str(&("\"".to_owned() + &r.to_string() + "\", "));
 
@@ -241,6 +295,9 @@ fn gen_r_vote_master() -> io::Result<()>  {
 
     let vote_choice = 1;  // 0 = Y, 1 = N, 2 = A
     let voting_power = 300;
+
+    writeln!(witnessmap, "initial_witness.insert(Witness({}), FieldElement::from({}_u128));", 1, vote_choice as u128)?;
+    witness_ctr += 1;
 
     let vote_encryption = bjj_ah_elgamal::encrypt(&voting_power, &pk, &BigInt::from_str("2").unwrap());
 
