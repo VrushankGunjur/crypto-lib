@@ -73,6 +73,51 @@ pub fn sk_to_pk (sk: &BigInt) -> Point {
   return r;
 }
 
+
+// implement add-and-double algorithm for multiplication and include prints of all intermediary representations
+pub fn verbose_multiply(p: Point, scalar: BigInt) {
+    //BJJ: 𝑦^2=𝑥^3+168,698𝑥^2+𝑥
+
+    let target = p.mul_scalar(&scalar);
+    print_point(&target, "target");
+
+    // naive implementation
+
+
+    // let mut cur = p.clone();  //1P
+    // for i in 0..scalar.to_u64_digits().1[0]-1 {
+    //     // how many times to do the point doubling
+
+    //     cur = cur.projective().add(&p.projective()).affine(); // nP + P = (n+1)P
+    //     // this doubles the point n times instead of adding the point n times
+    //     //cur = cur.mul_scalar(&BigInt::from_bytes_be(Sign::Plus, &2_u32.to_be_bytes()));
+    //     print_point(&cur, &(i+2).to_string());
+    // }
+
+    // add and double implementation
+    let (_, bytes) = scalar.to_bytes_be();
+
+    // O but affine... for some reason, (0,1,0) --> affine was returning (0,0) instead of (0,1)...
+    let mut q = Point {x: Fr::from_str("0").unwrap(), y: Fr::from_str("1").unwrap()};
+    for byte in bytes.iter() {
+        for bit_idx in 0..8 {
+            let cur_bit = (byte >> (7-bit_idx)) & 1;
+            //println!("bit {}: {}", bit_idx, cur_bit);
+
+            // really, we want to print the inputs to the doubles AND adds as inputs to the circuit.
+            // can also double with q.projective().add(q)...
+            // double the point
+            q = q.mul_scalar(&BigInt::from_bytes_be(Sign::Plus, &2_u32.to_be_bytes()));
+            if cur_bit == 1 {
+                q = p.projective().add(&q.projective()).affine();
+                //print_point(&q, "q")
+            }
+            
+            print_point(&q, "cur")
+        }
+    }
+}
+
 pub fn encrypt(msg: &u32, pk: &Point, randomness: &BigInt) -> (PointProjective, PointProjective) {
   let adjusted_msg = msg;
   //let beta = gen_rand_bigint(); // randomness
@@ -206,12 +251,14 @@ fn extract_number(g_m: &mut PointProjective) -> u32 {
 }
 
 pub fn add_encryptions(cs: &Vec<(PointProjective, PointProjective)>) -> (PointProjective, PointProjective) {
+  
   let mut e_sum = cs[0].0.clone();
   let mut v_sum = cs[0].1.clone();
   for (e,v) in cs.iter().skip(1) {
     e_sum = e_sum.add(&e);
     v_sum = v_sum.add(&v);
     // flip the y coordinate to subtract (-y)
+    // a negative number is a number close to p (p-1 is -1 when the field is mod p)
   }
   return (e_sum, v_sum);
 }

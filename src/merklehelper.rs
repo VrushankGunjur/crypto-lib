@@ -4,7 +4,7 @@ use ff::PrimeField;
 use poseidon_rs::{Fr, Poseidon};
 use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
 
-use crate::hash;
+//use crate::hash;
 // #[derive(Debug, Clone)]
 // pub struct TrieNode {
 //   val: Option<[u8; 32]>,  // the actual enk... should probably be [u8; 32]
