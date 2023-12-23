@@ -12,6 +12,7 @@ use poseidon_rs::{Fr, Poseidon};
 
 use rand::Rng;
 use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
+use sha2::digest::typenum::False;
 
 
 use std::fs::{File, OpenOptions};
@@ -39,37 +40,57 @@ fn main() {
     //     println!("{}: {}", i, e.to_string());
     // }
 
-    let mut pass = 0u8;
-    let sig_pass = test_sig();
-    println!("Signature test passed: {}", sig_pass);
-    pass += sig_pass as u8;
+    const RUN_TEST: bool = false;
 
-    let blind_pass = test_blind_sig();
-    println!("Blind signature test passed: {}", blind_pass);
-    pass += blind_pass as u8;
+    if RUN_TEST {
+        let mut pass = 0u8;
+        let sig_pass = test_sig();
+        println!("Signature test passed: {}", sig_pass);
+        pass += sig_pass as u8;
 
-    let elgamal_pass = test_elgamal();
-    println!("Elgamal test passing: {}", elgamal_pass);
-    pass += elgamal_pass as u8;
+        let blind_pass = test_blind_sig();
+        println!("Blind signature test passed: {}", blind_pass);
+        pass += blind_pass as u8;
 
-    let additive_elgamal_pass = test_additive_elgamal();
-    println!("Additive Elgamal test passing: {}", additive_elgamal_pass);
-    pass += additive_elgamal_pass as u8;
+        let elgamal_pass = test_elgamal();
+        println!("Elgamal test passing: {}", elgamal_pass);
+        pass += elgamal_pass as u8;
 
-    let bjj_additive_elgamal_pass = test_bjj_ah_elgamal();
-    println!("BJJ Additive Elgamal test passing: {}", bjj_additive_elgamal_pass);
-    pass += additive_elgamal_pass as u8;
+        let additive_elgamal_pass = test_additive_elgamal();
+        println!("Additive Elgamal test passing: {}", additive_elgamal_pass);
+        pass += additive_elgamal_pass as u8;
 
-    let merkleization_pass = test_merkleization();
-    println!("Merkleization test passing: {}", merkleization_pass);
-    pass += merkleization_pass as u8;
-    println!("Tests passing: {}%", (pass as f32 / 6_f32) * 100_f32);
-    
+        let bjj_additive_elgamal_pass = test_bjj_ah_elgamal();
+        println!("BJJ Additive Elgamal test passing: {}", bjj_additive_elgamal_pass);
+        pass += additive_elgamal_pass as u8;
+
+        let merkleization_pass = test_merkleization();
+        println!("Merkleization test passing: {}", merkleization_pass);
+        pass += merkleization_pass as u8;
+        println!("Tests passing: {}%", (pass as f32 / 6_f32) * 100_f32);
+    }
     //gen_encrypt();
-    test_r_dec_prove_verify();
+    //test_r_dec_prove_verify();
+
+    sp_mult();
+
     //gen_r_del_master().unwrap();
     //gen_r_vote_master().unwrap();
     //gen_r_dec_master();
+}
+
+fn sp_mult() {
+    let s: u32 = 300;
+    println!("scalar: {}", s);
+    let r = bjj_ah_elgamal::get_point(&s);
+    bjj_ah_elgamal::print_point(&r, "point");
+
+    bjj_ah_elgamal::verbose_multiply(r, BigInt::from_bytes_be(Sign::Plus, &s.to_be_bytes()));
+    
+
+    //bjj_ah_elgamal::verbose_multiply(ret.0.affine(), BigInt::from_bytes_be(Sign::Plus, &11_u32.to_be_bytes()));
+    // bjj_ah_elgamal::print_point(&ret.0.affine(), "e");
+    // bjj_ah_elgamal::print_point(&ret.1.affine(), "v");
 }
 
 fn test_r_dec_prove_verify() {
@@ -249,7 +270,7 @@ fn gen_encrypt() {
     println!("Random: {}", randomness.to_string());
     let ret = bjj_ah_elgamal::encrypt(&50000, &pk, &randomness);
 
-    bjj_ah_elgamal::verbose_multiply(ret.0.affine(), BigInt::from_bytes_be(Sign::Plus, &11_u32.to_be_bytes()));
+    //bjj_ah_elgamal::verbose_multiply(ret.0.affine(), BigInt::from_bytes_be(Sign::Plus, &11_u32.to_be_bytes()));
     bjj_ah_elgamal::print_point(&ret.0.affine(), "e");
     bjj_ah_elgamal::print_point(&ret.1.affine(), "v");
 }
@@ -518,7 +539,7 @@ fn gen_r_del_master() -> io::Result<()> {
     //bjj_ah_elgamal::print_point(&pk, "pk_enc");
 
     let mut addrs = Vec::new();
-    let anonymity_set_size = 10;
+    let anonymity_set_size = 20;
 
     //println!("addrs:");
     for i in 1..(anonymity_set_size+1) {

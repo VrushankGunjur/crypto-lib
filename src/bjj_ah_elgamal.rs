@@ -2,6 +2,8 @@ use babyjubjub_rs::*;
 use lazy_static::lazy_static;
 use ff::*;
 use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
+use std::fs::{File, OpenOptions};
+use std::io::{self, Write};
 
 lazy_static! {
   // generator g
@@ -81,41 +83,55 @@ pub fn verbose_multiply(p: Point, scalar: BigInt) {
     let target = p.mul_scalar(&scalar);
     print_point(&target, "target");
 
-    // naive implementation
 
-
-    // let mut cur = p.clone();  //1P
-    // for i in 0..scalar.to_u64_digits().1[0]-1 {
-    //     // how many times to do the point doubling
-
-    //     cur = cur.projective().add(&p.projective()).affine(); // nP + P = (n+1)P
-    //     // this doubles the point n times instead of adding the point n times
-    //     //cur = cur.mul_scalar(&BigInt::from_bytes_be(Sign::Plus, &2_u32.to_be_bytes()));
-    //     print_point(&cur, &(i+2).to_string());
-    // }
+    let prover_path = "sp_mult.txt";
+    let piopts = OpenOptions::new().create(true).append(true).open(prover_path).unwrap();
+    // where to save the hints
+    let mut proverinfo = io::BufWriter::new(piopts); 
 
     // add and double implementation
     let (_, bytes) = scalar.to_bytes_be();
 
+    let n_bits = scalar.bits() as usize;
+
+    println!("num scalar bits: {}", n_bits);
+    let tot_bits = bytes.len() * 8;
+
     // O but affine... for some reason, (0,1,0) --> affine was returning (0,0) instead of (0,1)...
     let mut q = Point {x: Fr::from_str("0").unwrap(), y: Fr::from_str("1").unwrap()};
-    for byte in bytes.iter() {
+
+
+    let mut hint_str = "[".to_string();
+
+    for (byte_idx, byte) in bytes.iter().enumerate() { //.skip(tot_bytes - n_bytes - 1) {
         for bit_idx in 0..8 {
+            // skip leading 0's
+            if (byte_idx * 8) + bit_idx < tot_bits - n_bits as usize {
+                continue;
+            } 
+
             let cur_bit = (byte >> (7-bit_idx)) & 1;
             //println!("bit {}: {}", bit_idx, cur_bit);
 
-            // really, we want to print the inputs to the doubles AND adds as inputs to the circuit.
             // can also double with q.projective().add(q)...
             // double the point
             q = q.mul_scalar(&BigInt::from_bytes_be(Sign::Plus, &2_u32.to_be_bytes()));
+            
             if cur_bit == 1 {
                 q = p.projective().add(&q.projective()).affine();
                 //print_point(&q, "q")
+                hint_str.push_str(&format!("\"{}\", ", point_x_str(&q)));
+                hint_str.push_str(&format!("\"{}\", ", point_y_str(&q)));
             }
             
             print_point(&q, "cur")
         }
     }
+
+    hint_str = hint_str[0..hint_str.len()-2].to_string();
+    hint_str.push_str("]");
+
+    writeln!(proverinfo, "hints = {}", hint_str).unwrap();
 }
 
 pub fn encrypt(msg: &u32, pk: &Point, randomness: &BigInt) -> (PointProjective, PointProjective) {
