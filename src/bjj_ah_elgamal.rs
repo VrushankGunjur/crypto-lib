@@ -58,7 +58,7 @@ pub fn print_point_proj(p: &PointProjective, name: &str) {
 pub fn gen_rand_bigint () -> BigInt {
   let mut rng = rand::thread_rng();
   let low =  1.to_bigint().unwrap();
-  let high = 1000000.to_bigint().unwrap();
+  let high = 100_000_000.to_bigint().unwrap();
   return rng.gen_bigint_range(&low, &high);
 }
 
@@ -111,20 +111,24 @@ pub fn verbose_multiply(p: Point, scalar: BigInt) {
             } 
 
             let cur_bit = (byte >> (7-bit_idx)) & 1;
-            //println!("bit {}: {}", bit_idx, cur_bit);
 
             // can also double with q.projective().add(q)...
             // double the point
             q = q.mul_scalar(&BigInt::from_bytes_be(Sign::Plus, &2_u32.to_be_bytes()));
             
             if cur_bit == 1 {
+                print_point(&p, "p");
+                print_point(&q, "cur");
+
                 q = p.projective().add(&q.projective()).affine();
+
+                print_point(&q, "res");
                 //print_point(&q, "q")
                 hint_str.push_str(&format!("\"{}\", ", point_x_str(&q)));
                 hint_str.push_str(&format!("\"{}\", ", point_y_str(&q)));
             }
             
-            print_point(&q, "cur")
+            //print_point(&q, "cur")
         }
     }
 
@@ -162,8 +166,6 @@ fn test_equality(p1: &mut Point, p2: &mut Point) -> bool {
 pub fn decrypt(sk: &BigInt, c: (PointProjective, PointProjective)) -> u32 {
   let (e, v) = c;
 
-  //print_point(&e, "e");
-  //print_point(&v, "v");
   println!("sk: {}", sk.to_string());
 
   let mut g_m: PointProjective = e.clone();
@@ -182,10 +184,6 @@ pub fn decrypt(sk: &BigInt, c: (PointProjective, PointProjective)) -> u32 {
 pub fn rerandomize(pk: &Point, c: &(PointProjective, PointProjective), r: &BigInt) -> (PointProjective, PointProjective) {
 
   let (e, v) = c;
-  //print_point(pk, "pk");
-  //print_point(&e, "e");
-  //print_point(&v, "v");
-
   //let r = gen_rand_bigint();
   //println!("r: {}", r.to_string());
 
@@ -195,9 +193,6 @@ pub fn rerandomize(pk: &Point, c: &(PointProjective, PointProjective), r: &BigIn
 
   let v_rerand = v.add(&g_r);
   let e_rerand = e.add(&pk_r);
-
-  //print_point(&v_rerand, "v_rerand");
-  //print_point(&e_rerand, "e_rerand");
   return (e_rerand, v_rerand)
 }
 
@@ -215,7 +210,6 @@ pub fn discrete_log(g_m: &mut PointProjective) -> u32 {
     let q: u32 = 16_192_576;
     //let t = (q as f64).sqrt() as u32;
     let t = 4024;
-    //println!("q: {}, t: {}", q, t);
 
     let mut ring: Vec<Point> = vec![B8.clone(); (t+1) as usize];    // 0th index is unused.
     for i in 1..(t+1) {

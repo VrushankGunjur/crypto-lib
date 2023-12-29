@@ -40,7 +40,7 @@ fn main() {
     //     println!("{}: {}", i, e.to_string());
     // }
 
-    const RUN_TEST: bool = false;
+    const RUN_TEST: bool = true;
 
     if RUN_TEST {
         let mut pass = 0u8;
@@ -72,7 +72,7 @@ fn main() {
     //gen_encrypt();
     //test_r_dec_prove_verify();
 
-    sp_mult();
+    //sp_mult();
 
     //gen_r_del_master().unwrap();
     //gen_r_vote_master().unwrap();
@@ -80,12 +80,12 @@ fn main() {
 }
 
 fn sp_mult() {
-    let s: u32 = 300;
+    let s: u32 = 5;
     println!("scalar: {}", s);
-    let r = bjj_ah_elgamal::get_point(&s);
+    let r = bjj_ah_elgamal::get_point(&s);  // g * s
     bjj_ah_elgamal::print_point(&r, "point");
 
-    bjj_ah_elgamal::verbose_multiply(r, BigInt::from_bytes_be(Sign::Plus, &s.to_be_bytes()));
+    bjj_ah_elgamal::verbose_multiply(r, BigInt::from_bytes_be(Sign::Plus, &s.to_be_bytes()));   // g * s * s
     
 
     //bjj_ah_elgamal::verbose_multiply(ret.0.affine(), BigInt::from_bytes_be(Sign::Plus, &11_u32.to_be_bytes()));
