@@ -12,8 +12,8 @@ use poseidon_rs::{Fr, Poseidon};
 
 use rand::Rng;
 use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
-use sha2::digest::typenum::False;
 
+use ecdsa::*;
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
@@ -72,15 +72,16 @@ fn main() {
     //gen_encrypt();
     //test_r_dec_prove_verify();
 
-    //sp_mult();
+    // sp_mult();
 
+    gen_r_encsub();
     //gen_r_del_master().unwrap();
     //gen_r_vote_master().unwrap();
     //gen_r_dec_master();
 }
 
 fn sp_mult() {
-    let s: u32 = 5;
+    let s: u32 = 5000;
     println!("scalar: {}", s);
     let r = bjj_ah_elgamal::get_point(&s);  // g * s
     bjj_ah_elgamal::print_point(&r, "point");
@@ -91,6 +92,61 @@ fn sp_mult() {
     //bjj_ah_elgamal::verbose_multiply(ret.0.affine(), BigInt::from_bytes_be(Sign::Plus, &11_u32.to_be_bytes()));
     // bjj_ah_elgamal::print_point(&ret.0.affine(), "e");
     // bjj_ah_elgamal::print_point(&ret.1.affine(), "v");
+}
+
+fn gen_r_sub() {
+    let sk = bjj_ah_elgamal::get_sk();
+    let pk = bjj_ah_elgamal::sk_to_pk(&sk);
+
+    let m1: u32 = 2000;
+    let m2: u32 = 24;
+
+    let (c1_e, c1_v) = bjj_ah_elgamal::encrypt(&m1, &pk, &BigInt::from_str("2").unwrap()).clone();
+    let (c2_e, c2_v) = bjj_ah_elgamal::encrypt(&m2, &pk, &BigInt::from_str("3").unwrap()).clone();
+
+    //let (res_e, res_v) = bjj_ah_elgamal::add_encryptions(&vec![(c1_e.clone(), c1_v.clone()), (c2_e.clone(), c2_v.clone())]);
+
+    bjj_ah_elgamal::print_point(&c1_e.affine(), "c1.e");
+    bjj_ah_elgamal::print_point(&c1_v.affine(), "c1.v");
+
+    bjj_ah_elgamal::print_point(&c2_e.clone().affine(), "c2.e");
+    bjj_ah_elgamal::print_point(&c2_v.affine(), "c2.v");
+
+    let (res_e, res_v) = bjj_ah_elgamal::subtract_encryptions((c1_e.clone(), c1_v.clone()), (c2_e.clone(), c2_v.clone()));
+
+    bjj_ah_elgamal::print_point(&res_e.affine(), "res.e");
+    bjj_ah_elgamal::print_point(&res_v.affine(), "res.v");
+
+    println!("{}", bjj_ah_elgamal::decrypt(&sk, (res_e, res_v)));
+}
+
+fn gen_r_encsub() {
+    let sk = bjj_ah_elgamal::get_sk();
+    let pk = bjj_ah_elgamal::sk_to_pk(&sk);
+
+    bjj_ah_elgamal::print_point(&pk, "pk");
+    let m1: u32 = 2000;
+    let m2: u32 = 24;
+
+    let (c1_e, c1_v) = bjj_ah_elgamal::encrypt(&m1, &pk, &BigInt::from_str("2").unwrap()).clone();
+    //let (c2_e, c2_v) = bjj_ah_elgamal::encrypt(&m2, &pk, &BigInt::from_str("3").unwrap()).clone();
+
+    //let (res_e, res_v) = bjj_ah_elgamal::add_encryptions(&vec![(c1_e.clone(), c1_v.clone()), (c2_e.clone(), c2_v.clone())]);
+
+    bjj_ah_elgamal::print_point(&c1_e.affine(), "c1.e");
+    bjj_ah_elgamal::print_point(&c1_v.affine(), "c1.v");
+
+    println!("tpi: {}", m2);
+
+    let (c2_e, c2_v) = bjj_ah_elgamal::encrypt(&m2, &pk, &BigInt::from_str("0").unwrap()).clone();
+
+
+    let (res_e, res_v) = bjj_ah_elgamal::subtract_encryptions((c1_e.clone(), c1_v.clone()), (c2_e.clone(), c2_v.clone()));
+
+    bjj_ah_elgamal::print_point(&res_e.affine(), "res.e");
+    bjj_ah_elgamal::print_point(&res_v.affine(), "res.v");
+
+    println!("{}", bjj_ah_elgamal::decrypt(&sk, (res_e, res_v)));
 }
 
 fn test_r_dec_prove_verify() {
@@ -207,7 +263,6 @@ fn test_additive_elgamal() -> bool {
   let c2 = additiveeglamal::encrypt(&num2, pk);
 
   let c_combined = additiveeglamal::add_encryptions(&vec![c1, c2]);
-
   let rerandomized_c = additiveeglamal::rerandomize(pk, c_combined);
   assert!(rerandomized_c.0.x != c_combined.0.x);
 

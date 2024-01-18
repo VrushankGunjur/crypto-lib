@@ -100,7 +100,6 @@ pub fn verbose_multiply(p: Point, scalar: BigInt) {
     // O but affine... for some reason, (0,1,0) --> affine was returning (0,0) instead of (0,1)...
     let mut q = Point {x: Fr::from_str("0").unwrap(), y: Fr::from_str("1").unwrap()};
 
-
     let mut hint_str = "[".to_string();
 
     for (byte_idx, byte) in bytes.iter().enumerate() { //.skip(tot_bytes - n_bytes - 1) {
@@ -120,7 +119,61 @@ pub fn verbose_multiply(p: Point, scalar: BigInt) {
                 print_point(&p, "p");
                 print_point(&q, "cur");
 
+                // let x1 = p.x;
+                // let y1 = p.y;
+                // let x2 = q.x;
+                // let y2 = q.y;
+
+                print_point(&p, "p");
+                print_point(&q, "q1");
+                // p + q = q
                 q = p.projective().add(&q.projective()).affine();
+
+                print_point(&q, "q2");
+                // let x3 = q.x;
+                // let y3 = q.y;
+                
+                // // left = (x1 - x2) * (y2 + y3)
+                // let mut left = x1.clone();
+                // left.sub_assign(&x2);
+                // let mut rr = y2.clone();
+                // rr.add_assign(&y3);
+                // left.mul_assign(&rr);
+                // println!("left: {}", left.to_string());
+
+                // // right = (x2 - x3) * (y1 -  y2)
+                // let mut right = x2.clone();
+                // right.sub_assign(&x3);
+                // let mut rr_2 = y1.clone();
+                // rr_2.sub_assign(&y2);
+                // right.mul_assign(&rr_2);
+                // println!("right: {}", right.to_string());
+
+                // left = (y2 - y1) * 1/(x2 - x1)
+                // let mut left = y2.clone();
+                // left.sub_assign(&y1);
+                // let mut d1 = x2.clone();
+                // d1.sub_assign(&x1);
+                // d1 = d1.inverse().unwrap();
+                // left.mul_assign(&d1);
+                // println!("left: {}", left.to_string());
+
+                // // right = (-y3 - y2) * 1/(x3 - x2)
+                // let mut right = y3.clone();
+                // right.negate();
+                // right.sub_assign(&y2);
+                // let mut d2 = x3.clone();
+                // d2.sub_assign(&x2);
+                // d2 = d2.inverse().unwrap();
+                // right.mul_assign(&d2);
+                // println!("right: {}", right.to_string());
+
+                // left = left.inverse().unwrap();
+                // println!("inv: {}", left.to_string());
+
+                // right.inverse().unwrap();
+                // left.mul_assign(&right);
+                // println!("multiple: {}", left.to_string());
 
                 print_point(&q, "res");
                 //print_point(&q, "q")
@@ -280,9 +333,10 @@ pub fn subtract_encryptions(c1: (PointProjective, PointProjective), c2: (PointPr
 
     let mut e2_neg = c2.0.clone();
     let mut v2_neg = c2.1.clone();
+
+    // why is it flipping the x coordinate instead of the y coordinate?
     e2_neg.x.negate();  // negate encryption
     v2_neg.x.negate();
-
 
     return (e1.add(&e2_neg), v1.add(&v2_neg));
 }
