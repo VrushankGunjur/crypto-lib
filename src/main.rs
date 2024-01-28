@@ -1,4 +1,5 @@
-use blst::{blst_scalar, min_pk::SecretKey, blst_p1};
+use babyjubjub_rs::Point;
+use blst::{blst_scalar, min_pk::SecretKey as blstSecretKey, blst_p1};
 mod signature;
 mod blindsignature;
 mod elgamal;
@@ -6,21 +7,21 @@ mod additiveeglamal;
 mod bjj_ah_elgamal;
 //mod hash;
 mod merklehelper;
+use ecdsa::signature::Signer;
 use ff::PrimeField;
+use ff::hex::ToHex;
 //use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
 use poseidon_rs::{Fr, Poseidon};
 
 use rand::Rng;
 use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt};
+use rand::rngs::OsRng;
 
-use ecdsa::*;
-
+use std::any::Any;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::str::FromStr;
 
-use crate::bjj_ah_elgamal::verbose_multiply;
-use crate::{bjj_ah_elgamal::print_point, blindsignature::gen_r};
 //use ff::{PrimeField, Field};
 use noir_rs::{
     native_types::{Witness, WitnessMap},
@@ -28,6 +29,13 @@ use noir_rs::{
 };
 use serde_json::Value;
 use std::fs;
+
+use k256::ecdsa::{hazmat::SignPrimitive, RecoveryId, VerifyingKey, Signature, SigningKey};
+use sha3::{Keccak256, Digest};
+use hex_literal::hex;
+
+use ethers_core::rand::thread_rng;
+// use ethers_signers::{LocalWallet, Signer};
 
 fn main() {
     //signature::print_hello();
@@ -40,7 +48,7 @@ fn main() {
     //     println!("{}: {}", i, e.to_string());
     // }
 
-    const RUN_TEST: bool = true;
+    const RUN_TEST: bool = false;
 
     if RUN_TEST {
         let mut pass = 0u8;
@@ -69,16 +77,68 @@ fn main() {
         pass += merkleization_pass as u8;
         println!("Tests passing: {}%", (pass as f32 / 6_f32) * 100_f32);
     }
+
+    //gen_ecdsa();
+    //test_r_dec_prove_verify()
     //gen_encrypt();
     //test_r_dec_prove_verify();
 
     // sp_mult();
-
-    gen_r_encsub();
+    //gen_r_sub();
+    //gen_r_encsub();
+    gen_r_vecadd();
     //gen_r_del_master().unwrap();
-    //gen_r_vote_master().unwrap();
+    //gaen_r_vote_master().unwrap();
     //gen_r_dec_master();
 }
+
+//  fn gen_ecdsa() {
+//     // let signing_key = SigningKey::from_bytes(&hex!(
+//     //     "4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318"
+//     // ).into()).unwrap();
+    
+//     // let msg = hex!("e9808504e3b29200831e848094f0109fc8df283027b6285cc889f5aa624eac1f55843b9aca0080018080");
+//     // let digest = Keccak256::new_with_prefix(msg);
+//     // let (signature, recid) = signing_key.sign_digest_recoverable(digest).unwrap();
+    
+//     // assert_eq!(
+//     //     signature.to_bytes().as_slice(),
+//     //     &hex!("c9cf86333bcb065d140032ecaab5d9281bde80f21b9687b3e94161de42d51895727a108a0b8d101465414033c3f705a9c7b826e596766046ee1183dbc8aeaa68")
+//     // );
+    
+//     // assert_eq!(recid, RecoveryId::try_from(0u8).unwrap());
+//     let wallet = LocalWallet::new(&mut thread_rng());
+
+//     // The wallet can be used to sign messages
+//     let message = b"hello";
+//     let signature = wallet.sign_message(message).await?;
+
+//     assert_eq!(signature.recover(&message[..]).unwrap(), wallet.address());
+// }
+// fn gen_ecdsa() {
+//     // Generate a random private key
+//     let private_key = SigningKey::random(&mut OsRng);
+
+//     // Get the corresponding public key
+//     let public_key = VerifyingKey::from(&private_key);
+
+//     // Data to be signed
+//     let data = b"Hello, world!";
+
+//     // Sign the data
+//     let signature: Signature = private_key.sign(data);
+
+//     // Convert the signature components to bytes
+//     let r = signature.r();
+//     let s = signature.s();
+//     let v = signature.type_id();
+//     println!("r: {:?}",  r.to_bytes());
+//     println!("s: {:?}",  s.to_bytes());
+//     // let (r, s) = signature.to_asn1();
+
+//     // Convert public key to bytes (compressed format)
+//     //let public_key_bytes = public_key.to_bytes_compressed();
+// }
 
 fn sp_mult() {
     let s: u32 = 5000;
@@ -92,6 +152,67 @@ fn sp_mult() {
     //bjj_ah_elgamal::verbose_multiply(ret.0.affine(), BigInt::from_bytes_be(Sign::Plus, &11_u32.to_be_bytes()));
     // bjj_ah_elgamal::print_point(&ret.0.affine(), "e");
     // bjj_ah_elgamal::print_point(&ret.1.affine(), "v");
+}
+
+fn gen_r_vecadd() {
+    let prover_path = "vecadd_Prover.txt";
+    let piopts = OpenOptions::new().create(true).append(true).open(prover_path).unwrap();
+    let mut proverinfo = io::BufWriter::new(piopts); 
+
+    let sk = bjj_ah_elgamal::get_sk();
+    let pk = bjj_ah_elgamal::sk_to_pk(&sk);
+
+    let mut summand1_string = "[".to_string();
+    let mut summand2_string = "[".to_string();
+    let mut sum_string = "[".to_string();
+    // generate two ciphertext vectors
+    for m in 1..21 {
+        let (c1_e_s1, v1_v_s1) = bjj_ah_elgamal::encrypt(&(m as u32), &pk, &BigInt::from_str("2").unwrap());
+        
+        let s1ex = bjj_ah_elgamal::point_x_str(&c1_e_s1.affine());
+        let s1ey = bjj_ah_elgamal::point_y_str(&c1_e_s1.affine());
+        let s1vx = bjj_ah_elgamal::point_x_str(&v1_v_s1.affine());
+        let s1vy = bjj_ah_elgamal::point_y_str(&v1_v_s1.affine());
+
+        summand1_string.push_str(&("\"".to_owned() + &s1ex + "\", "));
+        summand1_string.push_str(&("\"".to_owned() + &s1ey + "\", "));
+        summand1_string.push_str(&("\"".to_owned() + &s1vx + "\", "));
+        summand1_string.push_str(&("\"".to_owned() + &s1vy + "\", "));
+
+        let (c1_e_s2, v1_v_s2) = bjj_ah_elgamal::encrypt(&(m + 40 as u32), &pk, &BigInt::from_str("4").unwrap());
+
+        let s2ex = bjj_ah_elgamal::point_x_str(&c1_e_s2.affine());
+        let s2ey = bjj_ah_elgamal::point_y_str(&c1_e_s2.affine());
+        let s2vx = bjj_ah_elgamal::point_x_str(&v1_v_s2.affine());
+        let s2vy = bjj_ah_elgamal::point_y_str(&v1_v_s2.affine());
+
+        summand2_string.push_str(&("\"".to_owned() + &s2ex + "\", "));
+        summand2_string.push_str(&("\"".to_owned() + &s2ey + "\", "));
+        summand2_string.push_str(&("\"".to_owned() + &s2vx + "\", "));
+        summand2_string.push_str(&("\"".to_owned() + &s2vy + "\", "));
+
+        let (res_e, res_v) = bjj_ah_elgamal::add_encryptions(&vec![(c1_e_s1.clone(), v1_v_s1.clone()), (c1_e_s2.clone(), v1_v_s2.clone())]);
+
+        let resex = bjj_ah_elgamal::point_x_str(&res_e.affine());
+        let resey = bjj_ah_elgamal::point_y_str(&res_e.affine());
+        let resvx = bjj_ah_elgamal::point_x_str(&res_v.affine());
+        let resvy = bjj_ah_elgamal::point_y_str(&res_v.affine());
+        sum_string.push_str(&("\"".to_owned() + &resex + "\", "));
+        sum_string.push_str(&("\"".to_owned() + &resey + "\", "));
+        sum_string.push_str(&("\"".to_owned() + &resvx + "\", "));
+        sum_string.push_str(&("\"".to_owned() + &resvy + "\", "));
+    }
+
+    sum_string = sum_string[0..sum_string.len()-2].to_string();
+    summand2_string = summand2_string[0..summand2_string.len()-2].to_string();
+    summand1_string = summand1_string[0..summand1_string.len()-2].to_string();
+    sum_string.push_str("]");
+    summand2_string.push_str("]");
+    summand1_string.push_str("]");
+
+    writeln!(proverinfo, "summand1 = {}", summand1_string).unwrap();
+    writeln!(proverinfo, "summand2 = {}", summand2_string).unwrap();
+    writeln!(proverinfo, "sum = {}", sum_string).unwrap();
 }
 
 fn gen_r_sub() {
@@ -112,7 +233,9 @@ fn gen_r_sub() {
     bjj_ah_elgamal::print_point(&c2_e.clone().affine(), "c2.e");
     bjj_ah_elgamal::print_point(&c2_v.affine(), "c2.v");
 
-    let (res_e, res_v) = bjj_ah_elgamal::subtract_encryptions((c1_e.clone(), c1_v.clone()), (c2_e.clone(), c2_v.clone()));
+    // uncomment to subtract instead of add
+    //let (res_e, res_v) = bjj_ah_elgamal::subtract_encryptions((c1_e.clone(), c1_v.clone()), (c2_e.clone(), c2_v.clone()));
+    let (res_e, res_v) = bjj_ah_elgamal::add_encryptions(&vec![(c1_e.clone(), c1_v.clone()), (c2_e.clone(), c2_v.clone())]);
 
     bjj_ah_elgamal::print_point(&res_e.affine(), "res.e");
     bjj_ah_elgamal::print_point(&res_v.affine(), "res.v");
@@ -177,6 +300,8 @@ fn test_r_dec_prove_verify() {
     initial_witness.insert(Witness(12), FieldElement::from_hex("0x2c6bfc7fe056ed38e26ec136ec8aec5f63ecc4b52c44afba967649cf1e6e2311").unwrap()); 
     initial_witness.insert(Witness(13), FieldElement::from_hex("0x1ac7675df6265f6e12d1c79a2b3b6658a0d46a320fba497ad0b817f9b19e0f21").unwrap()); 
 
+    let p = FieldElement::from_hex("0x00ee1ef97f8a061cb6cf8b664f267888e644d5f2f8b3ea33acce4dda65d3c5c6").unwrap();
+    
     // msg
     //initial_witness.insert(Witness(14), FieldElement::from_hex("0x0000000000000000000000000000000000000000000000000000000000000032").unwrap()); 
     //initial_witness.insert(Witness(15), FieldElement::from_hex("0x0000000000000000000000000000000000000000000000000000000000000014").unwrap()); 
@@ -188,6 +313,7 @@ fn test_r_dec_prove_verify() {
 
     println!("Generating proof...");
     let (proof, vk) = noir_rs::prove(String::from(bytecode), initial_witness).unwrap();
+    let t: String = String::from_utf8_lossy(&proof.clone()).to_string();
     println!("Verifying proof...");
     let verdict = noir_rs::verify(String::from(bytecode), proof, vk).unwrap();
     assert!(verdict);
@@ -199,7 +325,7 @@ fn test_sig() -> bool {
   let msg: &[u8; 11] = b"Hello World";
   let dst: &[u8; 16] = b"Domain-Seperator";
 
-  let sk: SecretKey = signature::gen_sk();
+  let sk: blstSecretKey = signature::gen_sk();
   let pk: blst::min_pk::PublicKey = signature::pk_from_sk(&sk);
 
   let signature: blst::min_pk::Signature = signature::sign(msg, dst, &sk);
@@ -311,6 +437,7 @@ fn test_merkleization() -> bool {
     //     println!("{}: {}", i, e.to_string());
     // }
 
+
     return ss_ret.0.to_string() == "Fr(0x0ee44ff6038010b81e2e310efd8abfeb658b8f8f5e415bc90ac4426683f9c958)";
 }
 
@@ -355,7 +482,8 @@ fn gen_r_dec_master() -> io::Result<()> {
         let e_y =  bjj_ah_elgamal::point_y_str(&ct.0.affine());
         let v_x =  bjj_ah_elgamal::point_x_str(&ct.1.affine());
         let v_y =  bjj_ah_elgamal::point_y_str(&ct.1.affine());
-        
+
+        //let p: &mut [u8] = BigInt::from_str(&ct.0.x.to_string()[2..ct.0.x.to_string().len()]).unwrap().to_bytes_be().1.as_mut_slice();
         ct_string.push_str(&("\"".to_owned() + &e_x + "\", "));
         ct_string.push_str(&("\"".to_owned() + &e_y + "\", "));
         ct_string.push_str(&("\"".to_owned() + &v_x + "\", "));
@@ -594,7 +722,7 @@ fn gen_r_del_master() -> io::Result<()> {
     //bjj_ah_elgamal::print_point(&pk, "pk_enc");
 
     let mut addrs = Vec::new();
-    let anonymity_set_size = 20;
+    let anonymity_set_size = 25;
 
     //println!("addrs:");
     for i in 1..(anonymity_set_size+1) {
