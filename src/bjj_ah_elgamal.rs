@@ -133,48 +133,6 @@ pub fn verbose_multiply(p: Point, scalar: BigInt) {
                 // let x3 = q.x;
                 // let y3 = q.y;
                 
-                // // left = (x1 - x2) * (y2 + y3)
-                // let mut left = x1.clone();
-                // left.sub_assign(&x2);
-                // let mut rr = y2.clone();
-                // rr.add_assign(&y3);
-                // left.mul_assign(&rr);
-                // println!("left: {}", left.to_string());
-
-                // // right = (x2 - x3) * (y1 -  y2)
-                // let mut right = x2.clone();
-                // right.sub_assign(&x3);
-                // let mut rr_2 = y1.clone();
-                // rr_2.sub_assign(&y2);
-                // right.mul_assign(&rr_2);
-                // println!("right: {}", right.to_string());
-
-                // left = (y2 - y1) * 1/(x2 - x1)
-                // let mut left = y2.clone();
-                // left.sub_assign(&y1);
-                // let mut d1 = x2.clone();
-                // d1.sub_assign(&x1);
-                // d1 = d1.inverse().unwrap();
-                // left.mul_assign(&d1);
-                // println!("left: {}", left.to_string());
-
-                // // right = (-y3 - y2) * 1/(x3 - x2)
-                // let mut right = y3.clone();
-                // right.negate();
-                // right.sub_assign(&y2);
-                // let mut d2 = x3.clone();
-                // d2.sub_assign(&x2);
-                // d2 = d2.inverse().unwrap();
-                // right.mul_assign(&d2);
-                // println!("right: {}", right.to_string());
-
-                // left = left.inverse().unwrap();
-                // println!("inv: {}", left.to_string());
-
-                // right.inverse().unwrap();
-                // left.mul_assign(&right);
-                // println!("multiple: {}", left.to_string());
-
                 print_point(&q, "res");
                 //print_point(&q, "q")
                 hint_str.push_str(&format!("\"{}\", ", point_x_str(&q)));
@@ -262,7 +220,8 @@ pub fn discrete_log(g_m: &mut PointProjective) -> u32 {
     let g_m_affine = g_m.affine();
     let q: u32 = 16_192_576;
     //let t = (q as f64).sqrt() as u32;
-    let t = 4024;
+    //let t = 4024;
+    let t = 2012;   // supports max value of 4_048_144
 
     let mut ring: Vec<Point> = vec![B8.clone(); (t+1) as usize];    // 0th index is unused.
     for i in 1..(t+1) {

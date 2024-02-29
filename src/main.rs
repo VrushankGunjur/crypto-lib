@@ -36,7 +36,8 @@ use hex_literal::hex;
 
 use ethers_core::rand::thread_rng;
 // use ethers_signers::{LocalWallet, Signer};
-
+use chrono::Utc;
+use std::process::Command;
 fn main() {
     //signature::print_hello();
 
@@ -77,7 +78,20 @@ fn main() {
         pass += merkleization_pass as u8;
         println!("Tests passing: {}%", (pass as f32 / 6_f32) * 100_f32);
     }
+    test_bjj_ah_elgamal();
+    //gen_r_vecsub();
+    //gen_r_addmt();
+    // let start_time = Utc::now().time();
 
+    // let r = Command::new("~/.nargo/bin/nargo")
+    // .args(["prove"]).current_dir("../noir_projects/proofs/R_dec")
+    // .output()
+    // .expect("failed to execute process");
+
+    // println!("stdout: {}", String::from_utf8(r.stdout).unwrap());
+    // let end_time = Utc::now().time();
+    // let diff = end_time - start_time;
+    // println!("Proof generation time: {}", diff.num_seconds());
     //gen_ecdsa();
     //test_r_dec_prove_verify()
     //gen_encrypt();
@@ -86,7 +100,7 @@ fn main() {
     // sp_mult();
     //gen_r_sub();
     //gen_r_encsub();
-    gen_r_vecadd();
+    //gen_r_vecadd();
     //gen_r_del_master().unwrap();
     //gaen_r_vote_master().unwrap();
     //gen_r_dec_master();
@@ -215,7 +229,72 @@ fn gen_r_vecadd() {
     writeln!(proverinfo, "sum = {}", sum_string).unwrap();
 }
 
-fn gen_r_sub() {
+fn gen_r_vecsub() {
+    let prover_path = "vecsub_Prover.txt";
+    let piopts = OpenOptions::new().create(true).append(true).open(prover_path).unwrap();
+    let mut proverinfo = io::BufWriter::new(piopts); 
+
+    let sk = bjj_ah_elgamal::get_sk();
+    let pk = bjj_ah_elgamal::sk_to_pk(&sk);
+
+    let mut summand1_string = "[".to_string();
+    let mut summand2_string = "[".to_string();
+    let mut sum_string = "[".to_string();
+    // generate two ciphertext vectors
+    for m in 1..21 {
+        let (c1_e_s1, v1_v_s1) = bjj_ah_elgamal::encrypt(&(m as u32), &pk, &BigInt::from_str("2").unwrap());
+        
+        let s1ex = bjj_ah_elgamal::point_x_str(&c1_e_s1.affine());
+        let s1ey = bjj_ah_elgamal::point_y_str(&c1_e_s1.affine());
+        let s1vx = bjj_ah_elgamal::point_x_str(&v1_v_s1.affine());
+        let s1vy = bjj_ah_elgamal::point_y_str(&v1_v_s1.affine());
+
+        summand1_string.push_str(&("\"".to_owned() + &s1ex + "\", "));
+        summand1_string.push_str(&("\"".to_owned() + &s1ey + "\", "));
+        summand1_string.push_str(&("\"".to_owned() + &s1vx + "\", "));
+        summand1_string.push_str(&("\"".to_owned() + &s1vy + "\", "));
+
+        let (c1_e_s2, v1_v_s2) = bjj_ah_elgamal::encrypt(&(m + 40 as u32), &pk, &BigInt::from_str("4").unwrap());
+
+        let s2ex = bjj_ah_elgamal::point_x_str(&c1_e_s2.affine());
+        let s2ey = bjj_ah_elgamal::point_y_str(&c1_e_s2.affine());
+        let s2vx = bjj_ah_elgamal::point_x_str(&v1_v_s2.affine());
+        let s2vy = bjj_ah_elgamal::point_y_str(&v1_v_s2.affine());
+
+        summand2_string.push_str(&("\"".to_owned() + &s2ex + "\", "));
+        summand2_string.push_str(&("\"".to_owned() + &s2ey + "\", "));
+        summand2_string.push_str(&("\"".to_owned() + &s2vx + "\", "));
+        summand2_string.push_str(&("\"".to_owned() + &s2vy + "\", "));
+
+        let (res_e, res_v) = bjj_ah_elgamal::subtract_encryptions((c1_e_s1.clone(), v1_v_s1.clone()), (c1_e_s2.clone(), v1_v_s2.clone()));
+
+        let resex = bjj_ah_elgamal::point_x_str(&res_e.affine());
+        let resey = bjj_ah_elgamal::point_y_str(&res_e.affine());
+        let resvx = bjj_ah_elgamal::point_x_str(&res_v.affine());
+        let resvy = bjj_ah_elgamal::point_y_str(&res_v.affine());
+        sum_string.push_str(&("\"".to_owned() + &resex + "\", "));
+        sum_string.push_str(&("\"".to_owned() + &resey + "\", "));
+        sum_string.push_str(&("\"".to_owned() + &resvx + "\", "));
+        sum_string.push_str(&("\"".to_owned() + &resvy + "\", "));
+    }
+
+    sum_string = sum_string[0..sum_string.len()-2].to_string();
+    summand2_string = summand2_string[0..summand2_string.len()-2].to_string();
+    summand1_string = summand1_string[0..summand1_string.len()-2].to_string();
+    sum_string.push_str("]");
+    summand2_string.push_str("]");
+    summand1_string.push_str("]");
+
+    writeln!(proverinfo, "summand1 = {}", summand1_string).unwrap();
+    writeln!(proverinfo, "summand2 = {}", summand2_string).unwrap();
+    writeln!(proverinfo, "sum = {}", sum_string).unwrap();
+}
+
+fn gen_r_addmt() {
+    let prover_path = "addmt_Prover.txt";
+    let piopts = OpenOptions::new().create(true).append(true).open(prover_path).unwrap();
+    let mut proverinfo = io::BufWriter::new(piopts);
+
     let sk = bjj_ah_elgamal::get_sk();
     let pk = bjj_ah_elgamal::sk_to_pk(&sk);
 
@@ -241,6 +320,42 @@ fn gen_r_sub() {
     bjj_ah_elgamal::print_point(&res_v.affine(), "res.v");
 
     println!("{}", bjj_ah_elgamal::decrypt(&sk, (res_e, res_v)));
+
+    // merkle tree to file
+    let mut inp_leaves = Vec::new();
+    let enc_idx = 3;
+
+    // delegate_idx
+    let e_idx_string = format!("{:x}", enc_idx);
+    let padding = "0x".to_string() + &String::from_utf8(vec![b'0'; 64-e_idx_string.len()]).unwrap();
+
+    for i in 0..4 {
+        if i == enc_idx {
+            
+            inp_leaves.push(vec![c2_e.affine().x, c2_e.affine().y, c2_v.affine().x, c2_v.affine().y]);
+        } else {
+            let other_enc = bjj_ah_elgamal::encrypt(&(i+1), &pk, &BigInt::from_str("3").unwrap());
+            inp_leaves.push(vec![other_enc.0.affine().x, other_enc.0.affine().y, other_enc.1.affine().x, other_enc.1.affine().y])
+        }
+    }
+
+    let (root, hashpath) = merklehelper::gen_proof_padded(&inp_leaves, 20, enc_idx).unwrap();
+
+    let root_string = root.to_string();
+    writeln!(proverinfo, "mt_root = \"{}\"", &root_string[3..root_string.len()-1]).unwrap();
+
+    let mut prover_hp_string = "[".to_owned();
+    for m in hashpath.iter() {
+        let mut cur = m.to_string();
+        cur = cur[3..cur.len()-1].to_string();
+        prover_hp_string.push_str(&("\"".to_owned() + &cur + "\", "))
+    }
+    prover_hp_string = prover_hp_string[0..prover_hp_string.len()-2].to_string();
+    prover_hp_string.push_str("]");
+
+    writeln!(proverinfo, "mt_hashpath = {}", prover_hp_string).unwrap();
+    writeln!(proverinfo, "mt_idx = \"{}\"", enc_idx).unwrap();
+
 }
 
 fn gen_r_encsub() {
@@ -284,21 +399,26 @@ fn test_r_dec_prove_verify() {
 
     // sk
     //initial_witness.insert(Witness(1), FieldElement::from_hex("0x00000000000000000000000000000000000000000000000000000000000046B3").unwrap());
-    initial_witness.insert(Witness(1), FieldElement::from(18099_u128));
+    initial_witness.insert(Witness(1), FieldElement::from(98800413_u128));
     //FieldElement::zero();
+
+    // pk
+    initial_witness.insert(Witness(2), FieldElement::from_hex("0x19d3e20fb19410b7d93bbb0f6491049134b72bab89696eef741999b0f80b84f0").unwrap());
+    initial_witness.insert(Witness(3), FieldElement::from_hex("0x06f1f66fb61dea4ce6f8e0c0c083b3b9ee060629de151a821c561b27668d229f").unwrap());
+    
     // cts
-    initial_witness.insert(Witness(2), FieldElement::from_hex("0x00ee1ef97f8a061cb6cf8b664f267888e644d5f2f8b3ea33acce4dda65d3c5c6").unwrap());
-    initial_witness.insert(Witness(3), FieldElement::from_hex("0x150b67cc89afadb58f877a1353eda2f52838cde52455daaaaf4e54441afdcd24").unwrap()); 
-    initial_witness.insert(Witness(4), FieldElement::from_hex("0x172dba8d231345b865223308fe44ba307c159de512787257113e2a7137f831b4").unwrap()); 
-    initial_witness.insert(Witness(5), FieldElement::from_hex("0x25316c6b88a089801a57e442545e52c559cba980f84f44a8fca45c0f821c5cd7").unwrap()); 
-    initial_witness.insert(Witness(6), FieldElement::from_hex("0x0f9f02a7711587226f5b124c6f6df35b9acdd3fb5c59fbef8769f4bf6f99c6ec").unwrap()); 
-    initial_witness.insert(Witness(7), FieldElement::from_hex("0x0f7d4b13668486bcbbf5de4c42bbb33738b891e824b6deab3f4055c94c340a59").unwrap()); 
-    initial_witness.insert(Witness(8), FieldElement::from_hex("0x10c347ae3592776a678f9fc29ecd029f8297367209a4f28f7cb49b09bffd4145").unwrap()); 
-    initial_witness.insert(Witness(9), FieldElement::from_hex("0x113f8246f336e8d375c9daab552816825f481c210226f307bc863e017642566c").unwrap()); 
-    initial_witness.insert(Witness(10), FieldElement::from_hex("0x0d71deba24a8bb87ba9a7d01be8668595b607b96a49a4fae5f9c955ba651bd53").unwrap()); 
-    initial_witness.insert(Witness(11), FieldElement::from_hex("0x1ae06a2f8af0069ebf78d1d0a437c7e2195972fb803202db511ce65b40b807d6").unwrap()); 
-    initial_witness.insert(Witness(12), FieldElement::from_hex("0x2c6bfc7fe056ed38e26ec136ec8aec5f63ecc4b52c44afba967649cf1e6e2311").unwrap()); 
-    initial_witness.insert(Witness(13), FieldElement::from_hex("0x1ac7675df6265f6e12d1c79a2b3b6658a0d46a320fba497ad0b817f9b19e0f21").unwrap()); 
+    initial_witness.insert(Witness(4), FieldElement::from_hex("0x078a069e15bcbf426f925cd5cee00cc031ae18d8bcd3326289d8ceddfa607c42").unwrap());
+    initial_witness.insert(Witness(5), FieldElement::from_hex("0x0a2dcaa0644fffe766ef0329ae0ae8e4ce22d8b84ed64a31a9092b5b4fb008d0").unwrap()); 
+    initial_witness.insert(Witness(6), FieldElement::from_hex("0x0bb77a6ad63e739b4eacb2e09d6277c12ab8d8010534e0b62893f3f6bb957051").unwrap()); 
+    initial_witness.insert(Witness(7), FieldElement::from_hex("0x25797203f7a0b24925572e1cd16bf9edfce0051fb9e133774b3c257a872d7d8b").unwrap()); 
+    initial_witness.insert(Witness(8), FieldElement::from_hex("0x0a232c4856b9c4636b71dcac31d436531afaa6953f4ba23b74679e33ecec8461").unwrap()); 
+    initial_witness.insert(Witness(9), FieldElement::from_hex("0x20a1328983f2ee629fc22ea5469df6a774ccf2c5ea957239082c8a8717af5fef").unwrap()); 
+    initial_witness.insert(Witness(10), FieldElement::from_hex("0x0a677185fd6cd905b6a544b1006f4b3ea4a0dd596d47cabdab76a305859d928f").unwrap()); 
+    initial_witness.insert(Witness(11), FieldElement::from_hex("0x197ff60e146d51c662c83f975fdb7d86ed9a3be3d68ec62213c43264ef75a148").unwrap()); 
+    initial_witness.insert(Witness(12), FieldElement::from_hex("0x05e1754032a211bed4d175ff4bb55e69104e86cb701f27ecc6e2af9d16b2f9eb").unwrap()); 
+    initial_witness.insert(Witness(13), FieldElement::from_hex("0x151908789e73e28a4e291553bf7b24f46346c4e28dadf714226b4568d7847185").unwrap()); 
+    initial_witness.insert(Witness(14), FieldElement::from_hex("0x1961ff2315812fd2f3e459a258f5ded2dde68cd35c79c8b9fb443e1860e1fbe4").unwrap()); 
+    initial_witness.insert(Witness(15), FieldElement::from_hex("0x217d990737cc33efe8db5485973124fdd98c866783f0d81ffccfffe7102a9c6a").unwrap()); 
 
     let p = FieldElement::from_hex("0x00ee1ef97f8a061cb6cf8b664f267888e644d5f2f8b3ea33acce4dda65d3c5c6").unwrap();
     
@@ -306,16 +426,21 @@ fn test_r_dec_prove_verify() {
     //initial_witness.insert(Witness(14), FieldElement::from_hex("0x0000000000000000000000000000000000000000000000000000000000000032").unwrap()); 
     //initial_witness.insert(Witness(15), FieldElement::from_hex("0x0000000000000000000000000000000000000000000000000000000000000014").unwrap()); 
     //initial_witness.insert(Witness(16), FieldElement::from_hex("0x0000000000000000000000000000000000000000000000000000000000000003").unwrap()); 
-    initial_witness.insert(Witness(14), FieldElement::from(50_u128));
-    initial_witness.insert(Witness(15), FieldElement::from(20_u128));
-    initial_witness.insert(Witness(16), FieldElement::from(3_u128));
+    initial_witness.insert(Witness(16), FieldElement::from(50_u128));
+    initial_witness.insert(Witness(17), FieldElement::from(20_u128));
+    initial_witness.insert(Witness(18), FieldElement::from(3_u128));
 
 
     println!("Generating proof...");
-    let (proof, vk) = noir_rs::prove(String::from(bytecode), initial_witness).unwrap();
+    let c = String::from(bytecode);
+    let start_time = Utc::now().time();
+    let (proof, vk) = noir_rs::prove(c.clone(), initial_witness).unwrap();
+    let end_time = Utc::now().time();
+    let diff = end_time - start_time;
+    println!("Proof generation time: {}", diff.num_seconds());
     let t: String = String::from_utf8_lossy(&proof.clone()).to_string();
     println!("Verifying proof...");
-    let verdict = noir_rs::verify(String::from(bytecode), proof, vk).unwrap();
+    let verdict = noir_rs::verify(c, proof, vk).unwrap();
     assert!(verdict);
     println!("Proof correct");
 }
@@ -398,7 +523,7 @@ fn test_additive_elgamal() -> bool {
 }
 
 fn test_bjj_ah_elgamal() -> bool {
-  let num1 = 1_000_000u32;
+  let num1 = 1_500_000u32;
   let num2 = 2_500_000u32;
   let num3 = 0u32;
   let num4 = 1u32;
@@ -422,8 +547,13 @@ fn test_bjj_ah_elgamal() -> bool {
 
   assert!(rerand_c.0.x != c.0.x);
 
-  let decrypt = bjj_ah_elgamal::decrypt(&sk, rerand_c);
+    let start_time = Utc::now().time();
 
+
+  let decrypt = bjj_ah_elgamal::decrypt(&sk, rerand_c);
+  let end_time = Utc::now().time();
+  let diff = end_time - start_time;
+  println!("Decrypt time: {}ms", diff.num_milliseconds());
   println!("{}", decrypt);
   return decrypt == num1 + num2 + num3 - num4;
 }
@@ -466,7 +596,8 @@ fn gen_r_dec_master() -> io::Result<()> {
     let sk = bjj_ah_elgamal::get_sk();
     let pk = bjj_ah_elgamal::sk_to_pk(&sk);
 
-
+    writeln!(proverinfo, "pk_x = \"{}\"", bjj_ah_elgamal::point_x_str(&pk))?;
+    writeln!(proverinfo, "pk_y = \"{}\"", bjj_ah_elgamal::point_y_str(&pk))?;
 
     // Y/N/A
     let tally = vec![50_u32, 20_u32, 3_u32];
@@ -722,7 +853,7 @@ fn gen_r_del_master() -> io::Result<()> {
     //bjj_ah_elgamal::print_point(&pk, "pk_enc");
 
     let mut addrs = Vec::new();
-    let anonymity_set_size = 25;
+    let anonymity_set_size = 10;
 
     //println!("addrs:");
     for i in 1..(anonymity_set_size+1) {
