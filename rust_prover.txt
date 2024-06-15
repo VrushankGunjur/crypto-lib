@@ -1,1 +1,0 @@
-initial_witness.insert(Witness(1), FieldElement::from(1_u128));
